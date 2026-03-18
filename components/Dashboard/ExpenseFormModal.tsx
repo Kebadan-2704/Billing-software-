@@ -90,25 +90,62 @@ export default function ExpenseFormModal({
 
       console.log("Expense OCR Extracted Text:", text)
 
-      // Parsing logic for total amount and items
       const lines = text.split('\n').filter(line => line.trim().length > 0)
       const detectedItems: string[] = []
       let totalAmount = 0
 
+      // Keywords that indicate summary lines or noise that shouldn't be line items
+      const summaryKeywords = [
+        'TOTAL', 'SUBTOTAL', 'SUB-TOTAL', 'SUB TOTAL', 'GST', 'TAX', 'CGST', 'SGST', 'IGST', 
+        'VAT', 'NET', 'BALANCE', 'GRAND', 'ROUNDED', 'ROUND', 'SHIPPING', 'DATE', 'VENDOR', 
+        'GSTIN', 'CODE', 'PO NO', 'INVOICE NO', 'BILL TO', 'SHIP TO', 'TERMS', 'DUE'
+      ]
+
       lines.forEach((line) => {
-        const amountMatch = line.match(/(\d+[\.,]\d{2})/g)
-        if (amountMatch) {
-          const val = parseFloat(amountMatch[amountMatch.length - 1].replace(',', '.'))
-          if (val > totalAmount) totalAmount = val
-          detectedItems.push(line.trim())
+        const upperLine = line.trim().toUpperCase()
+
+        // Skip table headers, metadata and very short lines
+        if (
+          upperLine.includes('PRODUCT') || 
+          upperLine.includes('SERVICE') || 
+          upperLine.includes('AMOUNT') || 
+          upperLine.includes('DATE') || 
+          upperLine.includes('SHIPPING') ||
+          upperLine.includes('VENDOR') ||
+          upperLine.includes('GSTIN') ||
+          upperLine.includes('PO NO') ||
+          line.length < 5
+        ) return
+
+        // Skip lines that look like a date
+        if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) return
+
+        // Stricter price pattern
+        const priceMatch = line.match(/(?:\s|^)(\d+[\.,]\d{2})(?:\s|$)/g)
+        
+        if (priceMatch) {
+          const priceStr = priceMatch[priceMatch.length - 1].trim()
+          const price = parseFloat(priceStr.replace(',', '.'))
+          const isSummaryLine = summaryKeywords.some(kw => upperLine.includes(kw))
+          
+          if (isSummaryLine) {
+            if (upperLine.includes('TOTAL') || upperLine.includes('NET') || upperLine.includes('BALANCE') || upperLine.includes('AMOUNT')) {
+              totalAmount = Math.max(totalAmount, price)
+            }
+          } else {
+            let description = line.replace(priceStr, '').replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
+            if (description.length < 3 || /^\d+$/.test(description)) return
+            
+            detectedItems.push(`${description} - ₹${price.toLocaleString()}`)
+          }
         }
       })
 
       const finalResult = {
-        description: (detectedItems[0] || 'Extracted Expense').toUpperCase(),
-        amount: totalAmount || Math.floor(Math.random() * 2000) + 100,
+        description: (detectedItems[0]?.split(' - ')[0] || 'Extracted Expense').toUpperCase(),
+        amount: totalAmount || (detectedItems.length > 0 ? parseFloat(detectedItems[0].split('₹')[1].replace(/,/g, '')) : 0),
         category: 'General',
-        items: detectedItems.length > 0 ? detectedItems : ['Extracted Parameter 1', 'Extracted Parameter 2']
+        items: detectedItems.length > 0 ? detectedItems : ['No items detected']
       }
 
       setExtractionResult(finalResult)
