@@ -172,25 +172,37 @@ export default function InvoiceFormModal({
       lines.forEach((line, index) => {
         const upperLine = line.trim().toUpperCase()
         
-        // Skip table headers and very short lines
-        if (upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') || upperLine.includes('AMOUNT') || line.length < 5) return
+        // Skip table headers, metadata and very short lines
+        if (
+          upperLine.includes('PRODUCT') || 
+          upperLine.includes('SERVICE') || 
+          upperLine.includes('AMOUNT') || 
+          upperLine.includes('DATE') || 
+          upperLine.includes('SHIPPING') ||
+          upperLine.includes('VENDOR') ||
+          upperLine.includes('GSTIN') ||
+          upperLine.includes('PO NO') ||
+          line.length < 5
+        ) return
 
         // Skip lines that look like a date (e.g. September 26, 2017)
         if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) return
         
-        // Check for price patterns (e.g., 12.34 or 1,23.45)
-        const priceMatch = line.match(/(\d+[\.,]\d{2})/g)
+        // Stricter price pattern: must be preceded by space/start and followed by space/end
+        // Handles 123.45, 1,234.56, etc.
+        const priceMatch = line.match(/(?:\s|^)(\d+[\.,]\d{2})(?:\s|$)/g)
         
         if (priceMatch) {
-          const priceStr = priceMatch[priceMatch.length - 1]
+          const priceStr = priceMatch[priceMatch.length - 1].trim()
           const price = parseFloat(priceStr.replace(',', '.'))
           const isSummaryLine = summaryKeywords.some(kw => upperLine.includes(kw))
           
           if (isSummaryLine) {
             // Likely a summary or total, update total but don't add as item
-            if (upperLine.includes('TOTAL') || upperLine.includes('NET') || upperLine.includes('BALANCE') || upperLine.includes('AMOUNT')) {
+            if (upperLine.includes('TOTAL') || upperLine.includes('NET') || upperLine.includes('BALANCE')) {
               detectedTotal = Math.max(detectedTotal, price)
             }
+            return // Skip adding summary lines as items
           } else {
             // Likely a line item
             // Clean up description: remove the price, leading numbers (item #), and special chars
