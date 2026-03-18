@@ -3,7 +3,7 @@ import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
 
 export const metadata: Metadata = {
-  title: 'MD Construction - Project Manager',
+  title: 'MD SYSTEMS | Enterprise Intelligence',
   description: 'Professional construction project management system with multi-company support',
 }
 
