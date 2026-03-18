@@ -10,6 +10,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://mdsystems.com'),
   title: {
     default: 'MD SYSTEMS | Enterprise Intelligence',
     template: '%s | MD SYSTEMS'
