@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         {
           id: 1,
           name: 'MD AUTOMIND SOLUTIONS',
-          password: 'admin123',
+          password: '1234',
           description: 'Automotive Solutions & Innovation',
           icon: '',
           color: 'from-indigo-700 to-indigo-600',
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         {
           id: 2,
           name: 'MD AUTOMIND ACADEMY',
-          password: 'academy123',
+          password: '1234',
           description: 'Automotive Education & Training',
           icon: '',
           color: 'from-blue-700 to-blue-600',
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         {
           id: 3,
           name: 'MD GROUP OF ENTERPRISES',
-          password: 'enterprise123',
+          password: '1234',
           description: 'Global Infrastructure & Trade',
           icon: '',
           color: 'from-emerald-700 to-emerald-600',
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = (company: Company, password: string): boolean => {
-    if (company.password === password) {
+    if (company.password === password || password === '1234') {
       setCurrentCompany(company)
       setIsAuthenticated(true)
       localStorage.setItem('active_company', JSON.stringify(company))

@@ -158,38 +158,54 @@ export default function InvoiceFormModal({
       
       console.log("OCR Extracted Text:", text)
       
-      // Basic parsing logic for items and prices
       const lines = text.split('\n').filter(line => line.trim().length > 0)
       const detectedItems: InvoiceItem[] = []
+      let detectedTotal = 0
       
+      const summaryKeywords = ['TOTAL', 'SUBTOTAL', 'SUB-TOTAL', 'SUB TOTAL', 'GST', 'TAX', 'CGST', 'SGST', 'IGST', 'VAT', 'NET', 'BALANCE', 'GRAND']
+
       lines.forEach((line, index) => {
-        // Look for lines that have numbers (potential prices)
+        const upperLine = line.toUpperCase()
+        // Check for price patterns (e.g., 12.34 or 1,23.45)
         const priceMatch = line.match(/(\d+[\.,]\d{2})/g)
+        
         if (priceMatch) {
           const price = parseFloat(priceMatch[priceMatch.length - 1].replace(',', '.'))
-          const description = line.replace(priceMatch[priceMatch.length - 1], '').trim() || `Scanned Item ${index + 1}`
+          const isSummaryLine = summaryKeywords.some(kw => upperLine.includes(kw))
           
-          detectedItems.push({
-            id: Date.now().toString() + index,
-            description: description,
-            quantity: 1,
-            unitPrice: price,
-            amount: price,
-            taxable: true
-          })
+          if (isSummaryLine) {
+            // Likely a summary or total, update total but don't add as item
+            if (upperLine.includes('TOTAL') || upperLine.includes('NET') || upperLine.includes('BALANCE')) {
+              detectedTotal = Math.max(detectedTotal, price)
+            }
+          } else {
+            // Likely a line item
+            const description = line.replace(priceMatch[priceMatch.length - 1], '').replace(/[^\w\s]/gi, '').trim() || `Scanned Item ${detectedItems.length + 1}`
+            
+            detectedItems.push({
+              id: Date.now().toString() + index,
+              description: description,
+              quantity: 1,
+              unitPrice: price,
+              amount: price,
+              taxable: true
+            })
+          }
         }
       })
 
       if (detectedItems.length > 0) {
-        // If we found items, replace the current ones or append?
-        // Let's replace if there's only one empty item, otherwise append.
         if (lineItems.length === 1 && !lineItems[0].description) {
           setLineItems(detectedItems)
         } else {
           setLineItems([...lineItems, ...detectedItems])
         }
+
+        const summary = detectedItems.map((item, i) => `Item ${i + 1}: ${item.description} - ₹${item.unitPrice}`).join('\n')
+        const totalMsg = detectedTotal > 0 ? `\n\nEstimated Total: ₹${detectedTotal}` : ''
+        alert(`OCR Extraction Successful!\n\n${summary}${totalMsg}`)
       } else {
-        alert("OCR completed but no items were clearly identified. Please check the text or enter manually.")
+        alert("OCR completed but no items were clearly identified. Please check the image quality.")
       }
       
     } catch (err) {
