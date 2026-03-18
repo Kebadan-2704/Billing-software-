@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useRouter } from 'next/navigation'
-import { Save, ArrowLeft, LogOut, Building, Mail, Phone, MapPin, Camera, Loader2, CheckCircle, Shield, Activity, Database, Lock, Settings, Trash2, Edit2, Plus, X, Key, Globe, Cpu } from 'lucide-react'
+import { Save, ArrowLeft, LogOut, Building, Mail, Phone, MapPin, Camera, Loader2, CheckCircle, Shield, Activity, Database, Lock, Trash2, Edit2, Plus, X, Key, Globe, Cpu } from 'lucide-react'
 import { companyService } from '@/lib/services'
 import { supabase } from '@/lib/supabase'
+import Image from 'next/image'
 
 export default function SettingsPage() {
   const { isAuthenticated, currentCompany, companies, logout, isLoading: isAuthLoading, refresh } = useAuth()
@@ -301,7 +302,14 @@ export default function SettingsPage() {
                       <div className="relative inline-block group/avatar">
                          <div className="w-40 h-40 bg-slate-950 rounded-[40px] border-2 border-white/5 flex items-center justify-center overflow-hidden shadow-2xl relative">
                             {logoPreview ? (
-                              <img src={logoPreview} alt="Logo" className="w-full h-full object-cover gold-filter brightness-110" />
+                              <Image 
+                                src={logoPreview} 
+                                alt="Branding Logo" 
+                                width={160} 
+                                height={160} 
+                                unoptimized
+                                className="w-full h-full object-cover gold-filter brightness-110" 
+                              />
                             ) : (
                               <Building size={48} className="text-slate-800" />
                             )}
@@ -620,9 +628,20 @@ export default function SettingsPage() {
                            className="p-6 bg-white/5 border border-white/5 rounded-3xl flex items-center justify-between hover:bg-white/10 transition-all group"
                          >
                             <div className="flex items-center gap-6">
-                               <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center border border-white/5">
-                                  {c.logo ? <img src={c.logo} className="w-8 h-8 object-contain gold-filter" /> : <Building size={20} />}
-                               </div>
+                                <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center border border-white/5 overflow-hidden">
+                                   {c.logo ? (
+                                     <Image 
+                                       src={c.logo} 
+                                       alt={c.name}
+                                       width={48} 
+                                       height={48}
+                                       unoptimized
+                                       className="w-8 h-8 object-contain gold-filter" 
+                                     />
+                                   ) : (
+                                     <Building size={20} />
+                                   )}
+                                </div>
                                <div>
                                   <p className="font-black text-white italic uppercase tracking-wider">{c.name}</p>
                                   <p className="text-[9px] text-slate-500 uppercase tracking-widest">{c.city || 'Global'} Sector</p>

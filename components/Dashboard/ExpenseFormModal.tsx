@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, IndianRupee, Tag, Calendar, FileText, Upload, CheckCircle2, AlertCircle, Loader2, Scan, Image as ImageIcon } from 'lucide-react'
 import { Expense } from '@/lib/types'
 import { createWorker } from 'tesseract.js'
+import Image from 'next/image'
 
 interface ExpenseFormModalProps {
   isOpen: boolean
@@ -200,7 +201,14 @@ export default function ExpenseFormModal({
                     
                     {receiptImage ? (
                       <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl mb-8">
-                        <img src={receiptImage} alt="Receipt Preview" className="w-full h-full object-contain" />
+                        <Image 
+                          src={receiptImage} 
+                          alt="Receipt Preview" 
+                          width={600} 
+                          height={400} 
+                          unoptimized
+                          className="w-full h-full object-contain" 
+                        />
                         <button 
                           onClick={() => setReceiptImage(null)}
                           className="absolute top-4 right-4 p-2 bg-slate-950/80 text-white rounded-full hover:bg-rose-500 transition-all"
@@ -312,7 +320,14 @@ export default function ExpenseFormModal({
                     
                     {receiptImage && (
                       <div className="w-full aspect-video rounded-3xl overflow-hidden border border-white/10 mb-8 group relative">
-                        <img src={receiptImage} alt="Validation Preview" className="w-full h-full object-contain" />
+                        <Image 
+                          src={receiptImage} 
+                          alt="Validation Preview" 
+                          width={600} 
+                          height={400} 
+                          unoptimized
+                          className="w-full h-full object-contain" 
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent" />
                       </div>
                     )}

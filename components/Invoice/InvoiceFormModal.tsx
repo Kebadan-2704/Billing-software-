@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2, CheckCircle, FileText, Loader2, Camera, Scan, Image as ImageIcon } from 'lucide-react'
 import { Invoice, InvoiceItem, Client } from '@/lib/types'
 import { createWorker } from 'tesseract.js'
+import Image from 'next/image'
 
 interface InvoiceFormModalProps {
   isOpen: boolean
@@ -443,7 +444,14 @@ export default function InvoiceFormModal({
                   <div className="bg-slate-950/50 border-2 border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 transition-all hover:border-amber-500/30 group-hover:bg-amber-500/[0.02]">
                     {receiptImage ? (
                       <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-                        <img src={receiptImage} alt="Receipt Preview" className="w-full h-full object-contain" />
+                        <Image 
+                          src={receiptImage} 
+                          alt="Receipt Preview" 
+                          width={800} 
+                          height={600} 
+                          unoptimized
+                          className="w-full h-full object-contain" 
+                        />
                         <button 
                           onClick={() => setReceiptImage(null)}
                           className="absolute top-4 right-4 p-2 bg-slate-950/80 text-white rounded-full hover:bg-rose-500 transition-all"

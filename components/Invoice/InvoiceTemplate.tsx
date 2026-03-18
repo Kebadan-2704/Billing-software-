@@ -3,6 +3,7 @@
 import React from 'react'
 import { Invoice } from '@/lib/types'
 import { Company } from '@/lib/auth-context'
+import Image from 'next/image'
 
 interface InvoiceTemplateProps {
   invoice: Invoice
@@ -54,8 +55,14 @@ export default function InvoiceTemplate({ invoice, company, logoUrl }: InvoiceTe
         {/* WATERMARK */}
         <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
           {displayLogo ? (
-            <div className="w-[600px] h-[600px] flex items-center justify-center">
-              <img src={displayLogo} alt="Watermark" className="max-w-full max-h-full object-contain grayscale gold-filter opacity-40" />
+            <div className="w-[600px] h-[600px] flex items-center justify-center relative">
+              <Image 
+                src={displayLogo} 
+                alt="Watermark" 
+                fill
+                unoptimized
+                className="object-contain grayscale gold-filter opacity-40" 
+              />
             </div>
           ) : (
             <span className="text-[180px] font-black tracking-tighter -rotate-12 text-[#D4AF37]/20 uppercase">{company.name.slice(0, 3)}</span>
@@ -79,8 +86,15 @@ export default function InvoiceTemplate({ invoice, company, logoUrl }: InvoiceTe
 
               <div className="text-right space-y-4 flex flex-col items-end">
                  {displayLogo ? (
-                    <div className="h-24 w-48 flex justify-end items-center overflow-hidden">
-                       <img src={displayLogo} alt="Logo" className="max-h-full max-w-full object-contain gold-filter brightness-125" />
+                    <div className="h-24 w-48 flex justify-end items-center overflow-hidden relative">
+                       <Image 
+                         src={displayLogo} 
+                         alt="Logo" 
+                         width={192} 
+                         height={96} 
+                         unoptimized
+                         className="max-h-full max-w-full object-contain gold-filter brightness-125" 
+                       />
                     </div>
                  ) : (
                     <div className="w-16 h-16 bg-gradient-to-br from-[#D4AF37] to-[#F1D279] rounded-xl ml-auto" />

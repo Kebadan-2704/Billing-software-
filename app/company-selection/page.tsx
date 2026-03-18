@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Lock, X, ShieldCheck, ChevronRight } from 'lucide-react'
+import Image from 'next/image'
 
 export default function CompanySelection() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null)
@@ -63,9 +64,11 @@ export default function CompanySelection() {
           >
             <div className="relative group">
               <div className="absolute -inset-8 bg-primary/20 rounded-full blur-[60px] group-hover:bg-primary/30 transition-all duration-700 animate-pulse" />
-              <img 
+              <Image 
                 src="/md-logo-01.png" 
                 alt="MD Global" 
+                width={200}
+                height={128}
                 className="h-32 w-auto object-contain relative z-10 drop-shadow-[0_0_30px_rgba(212,175,55,0.4)] transition-transform duration-700 group-hover:scale-105" 
               />
             </div>
@@ -117,7 +120,14 @@ export default function CompanySelection() {
                   <div>
                     <div className="w-56 h-56 bg-white/5 border border-white/10 rounded-[40px] flex items-center justify-center p-2 mb-10 group-hover:scale-110 group-hover:border-primary/30 transition-all duration-700 shadow-xl overflow-hidden mx-auto">
                       {company.logo ? (
-                        <img src={company.logo} alt={company.name} className="max-w-full max-h-full object-contain gold-filter brightness-125 transition-transform duration-700 group-hover:scale-110" />
+                        <Image 
+                          src={company.logo} 
+                          alt={company.name} 
+                          width={224}
+                          height={224}
+                          unoptimized
+                          className="max-w-full max-h-full object-contain gold-filter brightness-125 transition-transform duration-700 group-hover:scale-110" 
+                        />
                       ) : (
                         <span className="text-6xl font-black text-white italic">{company.name.slice(0, 2)}</span>
                       )}

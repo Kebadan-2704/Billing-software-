@@ -9,6 +9,7 @@ import { LogOut, Printer, Download, Trash2, Menu, IndianRupee, X, Edit2 } from '
 import { useRouter } from 'next/navigation'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import Image from 'next/image'
 
 // Components
 import KPIBar from './Dashboard/KPIBar'
@@ -460,9 +461,12 @@ export default function EnhancedBillingDashboard() {
               >
                 <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 {currentCompany?.logo ? (
-                  <img 
+                  <Image 
                     src={currentCompany.logo} 
-                    alt="Logo" 
+                    alt="Enterprise Logo" 
+                    width={48} 
+                    height={48} 
+                    unoptimized
                     className="max-w-full max-h-full object-contain relative z-10 gold-filter brightness-125" 
                   />
                 ) : (
