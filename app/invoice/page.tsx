@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth-context'
 import { useRouter } from 'next/navigation'
-import ProfessionalInvoiceComponent from '@/components/EnhancedProfessionalInvoice'
+import ProfessionalInvoiceComponent from '@/components/EnhancedBillingDashboard'
 
 export default function InvoicePage() {
   const { isAuthenticated, currentCompany } = useAuth()

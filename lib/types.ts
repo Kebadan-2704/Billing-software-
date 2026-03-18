@@ -1,4 +1,3 @@
-// Types for Invoice Items
 export interface InvoiceItem {
   id: string
   description: string
@@ -8,9 +7,9 @@ export interface InvoiceItem {
   taxable: boolean
 }
 
-// Types for Client
 export interface Client {
   id: string
+  company_id: number
   name: string
   email: string
   phone: string
@@ -19,12 +18,12 @@ export interface Client {
   state: string
   zipCode: string
   country: string
-  taxId?: string
+  gstNumber?: string
 }
 
-// Types for Invoice
 export interface Invoice {
   id: string
+  company_id: number
   invoiceNumber: string
   issueDate: string
   dueDate: string
@@ -36,6 +35,7 @@ export interface Invoice {
   taxAmount: number
   total: number
   amountPaid?: number
+  poNumber?: string
   status: 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Cancelled' | 'Partial'
   notes?: string
   termsAndConditions?: string
@@ -54,6 +54,16 @@ export interface CompanySettings {
   address?: string
   city?: string
   state?: string
+  smtp_host?: string
+  smtp_port?: string
+  smtp_user?: string
+  smtp_pass?: string
+  bank_name?: string
+  bank_account?: string
+  bank_ifsc?: string
+  bank_branch?: string
+  pan_number?: string
+  authorized_signatory?: string
 }
 
 // Types for Monthly Financial Data
@@ -72,4 +82,14 @@ export interface CompanyFinancials {
   totalAmountPending: number
   totalAmount: number
   monthlyData: MonthlyData[]
+}
+
+export interface Expense {
+  id: string
+  company_id: number
+  description: string
+  amount: number
+  date: string
+  category?: string
+  created_at?: string
 }
