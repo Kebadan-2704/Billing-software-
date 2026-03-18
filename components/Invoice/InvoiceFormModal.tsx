@@ -162,26 +162,43 @@ export default function InvoiceFormModal({
       const detectedItems: InvoiceItem[] = []
       let detectedTotal = 0
       
-      const summaryKeywords = ['TOTAL', 'SUBTOTAL', 'SUB-TOTAL', 'SUB TOTAL', 'GST', 'TAX', 'CGST', 'SGST', 'IGST', 'VAT', 'NET', 'BALANCE', 'GRAND']
+      // Keywords that indicate summary lines or noise that shouldn't be line items
+      const summaryKeywords = [
+        'TOTAL', 'SUBTOTAL', 'SUB-TOTAL', 'SUB TOTAL', 'GST', 'TAX', 'CGST', 'SGST', 'IGST', 
+        'VAT', 'NET', 'BALANCE', 'GRAND', 'ROUNDED', 'ROUND', 'SHIPPING', 'DATE', 'VENDOR', 
+        'GSTIN', 'CODE', 'PO NO', 'INVOICE NO', 'BILL TO', 'SHIP TO', 'TERMS', 'DUE'
+      ]
 
       lines.forEach((line, index) => {
-        const upperLine = line.toUpperCase()
+        const upperLine = line.trim().toUpperCase()
+        
+        // Skip table headers and very short lines
+        if (upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') || upperLine.includes('AMOUNT') || line.length < 5) return
+
+        // Skip lines that look like a date (e.g. September 26, 2017)
+        if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) return
+        
         // Check for price patterns (e.g., 12.34 or 1,23.45)
         const priceMatch = line.match(/(\d+[\.,]\d{2})/g)
         
         if (priceMatch) {
-          const price = parseFloat(priceMatch[priceMatch.length - 1].replace(',', '.'))
+          const priceStr = priceMatch[priceMatch.length - 1]
+          const price = parseFloat(priceStr.replace(',', '.'))
           const isSummaryLine = summaryKeywords.some(kw => upperLine.includes(kw))
           
           if (isSummaryLine) {
             // Likely a summary or total, update total but don't add as item
-            if (upperLine.includes('TOTAL') || upperLine.includes('NET') || upperLine.includes('BALANCE')) {
+            if (upperLine.includes('TOTAL') || upperLine.includes('NET') || upperLine.includes('BALANCE') || upperLine.includes('AMOUNT')) {
               detectedTotal = Math.max(detectedTotal, price)
             }
           } else {
             // Likely a line item
-            const description = line.replace(priceMatch[priceMatch.length - 1], '').replace(/[^\w\s]/gi, '').trim() || `Scanned Item ${detectedItems.length + 1}`
+            // Clean up description: remove the price, leading numbers (item #), and special chars
+            let description = line.replace(priceStr, '').replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
             
+            // If the name is too short or just numbers, skip it
+            if (description.length < 3 || /^\d+$/.test(description)) return
+
             detectedItems.push({
               id: Date.now().toString() + index,
               description: description,
@@ -201,11 +218,11 @@ export default function InvoiceFormModal({
           setLineItems([...lineItems, ...detectedItems])
         }
 
-        const summary = detectedItems.map((item, i) => `Item ${i + 1}: ${item.description} - ₹${item.unitPrice}`).join('\n')
-        const totalMsg = detectedTotal > 0 ? `\n\nEstimated Total: ₹${detectedTotal}` : ''
+        const summary = detectedItems.map((item, i) => `Item ${i + 1}: ${item.description} - ₹${item.unitPrice.toLocaleString()}`).join('\n')
+        const totalMsg = detectedTotal > 0 ? `\n\nEstimated Total: ₹${detectedTotal.toLocaleString()}` : ''
         alert(`OCR Extraction Successful!\n\n${summary}${totalMsg}`)
       } else {
-        alert("OCR completed but no items were clearly identified. Please check the image quality.")
+        alert("OCR completed but no items were clearly identified. Please check the image quality or crop to the table.")
       }
       
     } catch (err) {
