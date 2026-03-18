@@ -568,7 +568,7 @@ export default function EnhancedBillingDashboard() {
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                     <div className="relative z-10 text-center md:text-left">
                       <div className="section-header-redefined">MD Enterprise Infrastructure</div>
-                      <h2 className="text-4xl md:text-6xl font-black text-white uppercase italic tracking-tighter leading-none mb-6">
+                      <h2 className="text-2xl md:text-6xl font-black text-white uppercase italic tracking-tighter leading-none mb-4 md:mb-6">
                         Enterprise <span className="gold-text-gradient">Registry</span>
                       </h2>
                       <div className="flex flex-wrap justify-center md:justify-start gap-6 items-center">

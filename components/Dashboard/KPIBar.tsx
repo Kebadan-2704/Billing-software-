@@ -24,7 +24,7 @@ export default function KPIBar({ stats }: KPIBarProps) {
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
       {items.map((stat, i) => (
         <motion.div 
           key={stat.label}
@@ -32,7 +32,7 @@ export default function KPIBar({ stats }: KPIBarProps) {
           animate={{ opacity: 1, y: 0 }}
           whileHover={{ y: -10, scale: 1.05 }}
           transition={{ delay: i * 0.1, duration: 1, ease: [0.2, 0.8, 0.2, 1] }}
-          className="glass-card relative flex items-center gap-6 p-6 md:p-8 border border-white/5 group hover:border-primary/20 transition-all overflow-visible shadow-2xl"
+          className="glass-card relative flex items-center gap-3 sm:gap-6 p-4 sm:p-8 border border-white/5 group hover:border-primary/20 transition-all overflow-visible shadow-2xl"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
           
@@ -42,8 +42,8 @@ export default function KPIBar({ stats }: KPIBarProps) {
           </div>
  
           <div className="relative z-10 flex-1 min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1 leading-none whitespace-nowrap overflow-visible">{stat.label}</p>
-            <p className={`inline-block text-xl md:text-2xl font-black pr-14 whitespace-nowrap tracking-normal overflow-visible ${stat.label === 'Net Liquidity' ? 'gold-text-gradient' : 'text-white'}`} style={{ WebkitBoxDecorationBreak: 'clone', WebkitBackgroundClip: 'text' }}>
+            <p className="text-[7px] sm:text-[9px] font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-slate-500 mb-0.5 sm:mb-1 leading-none whitespace-nowrap overflow-visible">{stat.label}</p>
+            <p className={`inline-block text-xs sm:text-2xl font-black pr-4 sm:pr-14 whitespace-nowrap tracking-normal overflow-visible ${stat.label === 'Net Liquidity' ? 'gold-text-gradient' : 'text-white'}`} style={{ WebkitBoxDecorationBreak: 'clone', WebkitBackgroundClip: 'text' }}>
               ₹{stat.val.toLocaleString('en-IN')}
             </p>
           </div>

@@ -208,52 +208,53 @@ export default function InvoiceFormModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl flex items-center justify-center z-[100] p-4 lg:p-8"
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl flex items-center justify-center z-[100] sm:p-4 lg:p-8"
           onClick={onClose}
         >
           <motion.div
             initial={{ scale: 0.9, y: 20, rotateX: -5 }}
             animate={{ scale: 1, y: 0, rotateX: 0 }}
             exit={{ scale: 0.9, y: 20, rotateX: 5 }}
-            className="glass-card !bg-slate-900/60 border border-white/10 rounded-[40px] shadow-2xl max-w-6xl w-full h-[90vh] overflow-hidden flex flex-col relative"
+            className="glass-card !bg-slate-900/60 border border-white/10 sm:rounded-[40px] shadow-2xl max-w-6xl w-full h-full sm:h-[90vh] overflow-hidden flex flex-col relative"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.05] via-transparent to-transparent pointer-events-none" />
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            <div className="p-10 border-b border-white/10 flex justify-between items-center bg-slate-950/50 relative overflow-hidden">
+            <div className="p-4 sm:p-10 border-b border-white/10 flex justify-between items-center bg-slate-950/50 relative overflow-hidden">
                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
                <div className="relative z-10">
-                <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none mb-3">
+                <h2 className="text-xl sm:text-4xl font-black text-white italic tracking-tighter uppercase leading-none mb-1 sm:mb-3">
                   {initialData ? 'Synchronize' : 'Orchestrate'} <span className="gold-text-gradient">Instrument</span>
                 </h2>
-                <div className="flex items-center gap-4">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Audit Node: Financial Emission Protocol</p>
-                  <div className="h-1 w-1 bg-primary/40 rounded-full animate-pulse" />
-                  <span className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[8px] font-black text-primary uppercase tracking-widest">Secure Ledger</span>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                  <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.4em]">Audit Node: Financial Emission Protocol</p>
+                  <div className="hidden sm:block h-1 w-1 bg-primary/40 rounded-full animate-pulse" />
+                  <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-primary/10 border border-primary/20 rounded-full text-[7px] sm:text-[8px] font-black text-primary uppercase tracking-widest">Secure Ledger</span>
                 </div>
               </div>
               <motion.button 
                 onClick={onClose}
                 whileHover={{ rotate: 90, scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                className="w-14 h-14 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl text-slate-400 hover:text-white hover:bg-white/10 transition-all font-black"
+                className="w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-slate-400 hover:text-white hover:bg-white/10 transition-all font-black"
               >
-                <X size={24} />
+                <X size={18} className="sm:hidden" />
+                <X size={24} className="hidden sm:block" />
               </motion.button>
             </div>
 
             {/* MODAL BODY */}
-            <div className="flex-1 overflow-y-auto p-10 space-y-16">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 pb-16 border-b border-white/5">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-10 space-y-6 sm:space-y-16">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-16 pb-8 sm:pb-16 border-b border-white/5">
                 {/* CLIENT SECTION */}
-                <div className="space-y-12">
-                  <div className="flex items-center gap-6">
-                    <div className="h-[1px] w-12 bg-primary/40" />
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Enterprise Entity Selection</h3>
+                <div className="space-y-6 sm:space-y-12">
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="h-[1px] w-8 sm:w-12 bg-primary/40" />
+                    <h3 className="text-[10px] sm:text-sm font-black text-white uppercase tracking-[0.2em] sm:tracking-[0.3em] italic">Enterprise Entity Selection</h3>
                   </div>
-                  <div className="space-y-6">
-                    <div className="space-y-4">
-                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] ml-2">Enterprise Nexus Selection</label>
+                  <div className="space-y-3 sm:space-y-6">
+                    <div className="space-y-1 sm:space-y-4">
+                       <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.4em] ml-2">Enterprise Nexus Selection</label>
                        <select
                         value={formData.clientId}
                         onChange={(e) => {
@@ -276,102 +277,102 @@ export default function InvoiceFormModal({
                             setFormData({ ...formData, clientId: '' })
                           }
                         }}
-                        className="w-full px-8 py-5 bg-slate-950/40 border border-white/10 rounded-2xl text-white font-bold outline-none focus:border-primary/50 transition-all shadow-inner appearance-none"
+                        className="w-full px-4 sm:px-8 py-2 sm:py-5 bg-slate-950/40 border border-white/10 rounded-xl sm:rounded-2xl text-white text-xs sm:text-base font-bold outline-none focus:border-primary/50 transition-all shadow-inner appearance-none"
                       >
-                        <option value="" className="bg-slate-900">Select Entity from Enterprise Database</option>
+                        <option value="" className="bg-slate-900">Select Entity from Database</option>
                         {clients.map(c => <option key={c.id} value={c.id} className="bg-slate-900">{c.name}</option>)}
                       </select>
                     </div>
                     
-                    <div className="space-y-4">
-                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] ml-2">Legal Name / Organization</label>
+                    <div className="space-y-1 sm:space-y-4">
+                       <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.4em] ml-2">Legal Name / Organization</label>
                         <input
                          placeholder="Organization Identity"
                          value={formData.clientName}
                          onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                         className="w-full px-8 py-5 bg-slate-950/40 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-primary/50 transition-all shadow-inner"
+                         className="w-full px-4 sm:px-8 py-2 sm:py-5 bg-slate-950/40 border border-white/10 rounded-xl sm:rounded-[24px] text-white text-xs sm:text-base font-bold outline-none focus:border-primary/50 transition-all shadow-inner"
                        />
                     </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="flex flex-col gap-2">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 h-9 flex items-center">Digital Relay (Email)</label>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-8">
+                        <div className="flex flex-col gap-1 sm:gap-2">
+                          <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 sm:h-9 flex items-center">Digital Relay (Email)</label>
                           <input
                            placeholder="Communications Node"
                            value={formData.clientEmail}
                            onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
-                           className="w-full px-8 py-5 bg-slate-950/50 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-primary/50 transition-all shadow-inner"
+                           className="w-full px-4 sm:px-8 py-2 sm:py-5 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-white text-xs sm:text-base font-bold outline-none focus:border-primary/50 transition-all shadow-inner"
                          />
                         </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 h-9 flex items-center">Voice Frequency (Phone)</label>
+                        <div className="flex flex-col gap-1 sm:gap-2">
+                          <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 sm:h-9 flex items-center">Voice Frequency (Phone)</label>
                           <input
                            placeholder="Contact Protocol"
                            value={formData.clientPhone}
                            onChange={(e) => setFormData({ ...formData, clientPhone: e.target.value })}
-                           className="w-full px-8 py-5 bg-slate-950/50 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-primary/50 transition-all shadow-inner"
+                           className="w-full px-4 sm:px-8 py-2 sm:py-5 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-white text-xs sm:text-base font-bold outline-none focus:border-primary/50 transition-all shadow-inner"
                          />
                         </div>
                      </div>
 
-                    <div className="space-y-4">
-                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] ml-2">Geographical Presence (Address)</label>
+                    <div className="space-y-1 sm:space-y-4">
+                       <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.4em] ml-2">Geographical Presence (Address)</label>
                        <textarea
                         placeholder="Physical Logistics Node"
                         rows={2}
                         value={formData.clientAddress}
                         onChange={(e) => setFormData({ ...formData, clientAddress: e.target.value })}
-                        className="w-full px-8 py-5 bg-slate-950/50 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-primary/50 transition-all"
+                        className="w-full px-4 sm:px-8 py-2 sm:py-5 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-white text-xs sm:text-base font-bold outline-none focus:border-primary/50 transition-all"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="flex flex-col gap-2">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 h-9 flex items-center">Urban City</label>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+                        <div className="flex flex-col gap-1 sm:gap-2">
+                          <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 sm:h-9 flex items-center">City</label>
                           <input
                            placeholder="City"
                            value={formData.clientCity}
                            onChange={(e) => setFormData({ ...formData, clientCity: e.target.value })}
-                           className="w-full px-6 py-4 bg-slate-950/50 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-primary/30 transition-all text-sm"
+                           className="w-full px-3 sm:px-6 py-2 sm:py-4 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-white font-bold outline-none focus:border-primary/30 transition-all text-[10px] sm:text-sm"
                          />
                         </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 h-9 flex items-center">District State</label>
+                        <div className="flex flex-col gap-1 sm:gap-2">
+                          <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 sm:h-9 flex items-center">State</label>
                           <input
                            placeholder="State"
                            value={formData.clientState}
                            onChange={(e) => setFormData({ ...formData, clientState: e.target.value })}
-                           className="w-full px-6 py-4 bg-slate-950/50 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-primary/30 transition-all text-sm"
+                           className="w-full px-3 sm:px-6 py-2 sm:py-4 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-white font-bold outline-none focus:border-primary/30 transition-all text-[10px] sm:text-sm"
                          />
                         </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 h-9 flex items-center">Grid Zip</label>
+                        <div className="flex flex-col gap-1 sm:gap-2">
+                          <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 sm:h-9 flex items-center">Zip</label>
                           <input
-                           placeholder="Postal Code"
+                           placeholder="Pincode"
                            value={formData.clientZip}
                            onChange={(e) => setFormData({ ...formData, clientZip: e.target.value })}
-                           className="w-full px-6 py-4 bg-slate-950/50 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-primary/30 transition-all text-sm"
+                           className="w-full px-3 sm:px-6 py-2 sm:py-4 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-white font-bold outline-none focus:border-primary/30 transition-all text-[10px] sm:text-sm"
                          />
                         </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 h-9 flex items-center">Nation Country</label>
+                        <div className="flex flex-col gap-1 sm:gap-2">
+                          <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 sm:h-9 flex items-center">Country</label>
                           <input
                            placeholder="Country"
                            value={formData.clientCountry}
                            onChange={(e) => setFormData({ ...formData, clientCountry: e.target.value })}
-                           className="w-full px-6 py-4 bg-slate-950/50 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-primary/30 transition-all text-sm"
+                           className="w-full px-3 sm:px-6 py-2 sm:py-4 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-white font-bold outline-none focus:border-primary/30 transition-all text-[10px] sm:text-sm"
                          />
                         </div>
                     </div>
 
-                     <div className="space-y-4 pt-10 border-t border-white/5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] ml-2">Fiscal Registry (GSTIN)</label>
+                     <div className="space-y-4 pt-4 sm:pt-10 border-t border-white/5">
+                        <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.4em] ml-2">Fiscal Registry (GSTIN)</label>
                          <div className="relative group">
                            <input
                             placeholder="RECIPIENT FISCAL ID"
                             value={formData.clientGst}
                             onChange={(e) => setFormData({ ...formData, clientGst: e.target.value.toUpperCase() })}
-                            className="w-full px-10 py-7 bg-slate-950/40 border border-primary/20 rounded-[32px] text-white font-mono font-black italic tracking-[0.3em] outline-none focus:border-primary/60 transition-all uppercase shadow-2xl shadow-primary/10 text-xl backdrop-blur-md"
+                            className="w-full px-6 sm:px-10 py-3 sm:py-7 bg-slate-950/40 border border-primary/20 rounded-2xl sm:rounded-[32px] text-white font-mono font-black italic tracking-[0.1em] sm:tracking-[0.3em] outline-none focus:border-primary/60 transition-all uppercase shadow-2xl shadow-primary/10 text-sm sm:text-xl backdrop-blur-md"
                           />
                           <div className="absolute inset-x-0 -bottom-px h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity" />
                          </div>
@@ -379,29 +380,29 @@ export default function InvoiceFormModal({
                   </div>
                 </div>
 
-                {/* LOGISTICS SECTION */}
-                <div className="space-y-12">
-                  <div className="flex items-center gap-6">
-                    <div className="h-[1px] w-12 bg-purple-500/40" />
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Logistics Matrix</h3>
+                 {/* LOGISTICS SECTION */}
+                <div className="space-y-6 sm:space-y-12">
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="h-[1px] w-8 sm:w-12 bg-purple-500/40" />
+                    <h3 className="text-[10px] sm:text-sm font-black text-white uppercase tracking-[0.2em] sm:tracking-[0.3em] italic">Logistics Matrix</h3>
                   </div>
-                  <div className="space-y-10">
-                    <div className="grid grid-cols-2 gap-8">
-                      <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 h-9 flex items-center">Maturity Threshold (Due Date)</label>
+                  <div className="space-y-4 sm:space-y-10">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
+                      <div className="flex flex-col gap-1 sm:gap-2">
+                        <label className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 sm:h-9 flex items-center">Maturity Threshold (Due Date)</label>
                         <input
                           type="date"
                           value={formData.dueDate}
                           onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                          className="w-full px-8 py-5 bg-slate-950/50 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-purple-500/50 transition-all font-mono"
+                          className="w-full px-4 sm:px-8 py-2 sm:py-5 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-white font-bold outline-none focus:border-purple-500/50 transition-all font-mono text-xs"
                         />
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 h-9 flex items-center">Settlement Framework</label>
+                      <div className="flex flex-col gap-1 sm:gap-2">
+                        <label className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 sm:h-9 flex items-center">Settlement Framework</label>
                         <select
                           value={formData.paymentTerms}
                           onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
-                          className="w-full px-8 py-5 bg-slate-950/50 border border-white/10 rounded-[24px] text-white font-bold outline-none focus:border-purple-500/50 transition-all shadow-inner"
+                          className="w-full px-4 sm:px-8 py-3 sm:py-5 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-white font-bold outline-none focus:border-purple-500/50 transition-all shadow-inner text-sm"
                         >
                           <option value="Net 30" className="bg-slate-900">NET_30_CYCLE</option>
                           <option value="Net 15" className="bg-slate-900">NET_15_CYCLE</option>
@@ -409,26 +410,26 @@ export default function InvoiceFormModal({
                         </select>
                       </div>
                     </div>
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] ml-2">Fiscal Levy Percentage (GST)</label>
+                    <div className="space-y-2 sm:space-y-4">
+                      <label className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.4em] ml-2">Fiscal Levy Percentage (GST)</label>
                       <div className="relative">
                         <input
                           type="number"
                           value={formData.taxRate}
                           onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) })}
-                          className="w-full px-8 py-5 bg-slate-950/50 border border-white/10 rounded-[24px] text-2xl font-black text-white italic focus:outline-none focus:border-purple-500/50 transition-all pr-16 font-mono"
+                          className="w-full px-4 sm:px-8 py-3 sm:py-5 bg-slate-950/50 border border-white/10 rounded-xl sm:rounded-[24px] text-lg sm:text-2xl font-black text-white italic focus:outline-none focus:border-purple-500/50 transition-all pr-12 sm:pr-16 font-mono"
                         />
-                        <span className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-600 font-black text-xl italic uppercase">%</span>
+                        <span className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 text-slate-600 font-black text-sm sm:text-xl italic uppercase">%</span>
                       </div>
                     </div>
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] ml-2">Internal Metadata (Notes)</label>
+                    <div className="space-y-2 sm:space-y-4">
+                      <label className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.4em] ml-2">Internal Metadata (Notes)</label>
                       <textarea
                         placeholder="Project Reference / Special Conditions"
                         rows={3}
                         value={formData.notes}
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        className="w-full px-8 py-5 bg-slate-950/50 border border-white/10 rounded-[28px] text-white font-bold outline-none focus:border-white/20 transition-all"
+                        className="w-full px-4 sm:px-8 py-2.5 sm:py-5 bg-slate-950/50 border border-white/10 rounded-[20px] sm:rounded-[28px] text-white text-xs font-bold outline-none focus:border-white/20 transition-all"
                       />
                     </div>
                   </div>
@@ -513,21 +514,21 @@ export default function InvoiceFormModal({
                   </motion.button>
                 </div>
                 
-                <div className="bg-white/5 rounded-3xl overflow-hidden border border-white/5">
-                  <table className="w-full">
+                <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+                  <table className="w-full min-w-[500px] sm:min-w-0">
                     <thead className="bg-white/5">
                       <tr className="text-left">
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Description</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest w-24">Qty</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest w-40">Rate</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest w-40 text-right">Yield</th>
-                        <th className="px-6 py-4 w-16"></th>
+                        <th className="px-4 sm:px-6 py-4 text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest text-emerald-500/50">Description</th>
+                        <th className="px-4 sm:px-6 py-4 text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest w-16 sm:w-24 text-center">Qty</th>
+                        <th className="px-4 sm:px-6 py-4 text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest w-32 sm:w-40">Rate</th>
+                        <th className="px-4 sm:px-6 py-4 text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest w-32 sm:w-40 text-right">Yield</th>
+                        <th className="px-4 w-12 sm:w-16"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {lineItems.map((item, idx) => (
-                        <tr key={item.id}>
-                          <td className="px-6 py-4">
+                        <tr key={item.id} className="group/row hover:bg-white/[0.02] transition-colors">
+                          <td className="px-4 sm:px-6 py-4">
                             <input
                               value={item.description}
                               onChange={(e) => {
@@ -535,11 +536,11 @@ export default function InvoiceFormModal({
                                 newItems[idx].description = e.target.value
                                 setLineItems(newItems)
                               }}
-                              className="w-full bg-transparent outline-none text-white font-bold"
-                              placeholder="Service or Product Name..."
+                              className="w-full bg-transparent outline-none text-white font-bold text-xs sm:text-base border-b border-transparent focus:border-emerald-500/30 transition-all placeholder:text-slate-800"
+                              placeholder="Service..."
                             />
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-4">
                             <input
                               type="number"
                               value={item.quantity}
@@ -549,10 +550,10 @@ export default function InvoiceFormModal({
                                 newItems[idx].amount = newItems[idx].quantity * newItems[idx].unitPrice
                                 setLineItems(newItems)
                               }}
-                              className="w-full bg-transparent outline-none text-white font-bold text-center"
+                              className="w-full bg-transparent outline-none text-white font-bold text-center text-sm sm:text-base"
                             />
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-4">
                             <input
                               type="number"
                               value={item.unitPrice}
@@ -562,16 +563,16 @@ export default function InvoiceFormModal({
                                 newItems[idx].amount = newItems[idx].quantity * newItems[idx].unitPrice
                                 setLineItems(newItems)
                               }}
-                              className="w-full bg-transparent outline-none text-white font-bold font-mono"
+                              className="w-full bg-transparent outline-none text-white font-bold font-mono text-sm sm:text-base"
                             />
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <span className="text-white font-black font-mono tracking-tighter">₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <td className="px-4 sm:px-6 py-4 text-right">
+                            <span className="text-white font-black font-mono tracking-tighter text-sm sm:text-base">₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-4 text-right">
                             <button 
                               onClick={() => lineItems.length > 1 && setLineItems(lineItems.filter(i => i.id !== item.id))}
-                              className="text-slate-700 hover:text-rose-500 transition-colors"
+                              className="text-slate-700 hover:text-rose-500 transition-colors opacity-0 group-hover/row:opacity-100 sm:opacity-100"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -585,34 +586,34 @@ export default function InvoiceFormModal({
             </div>
 
             {/* MODAL FOOTER */}
-            <div className="p-10 border-t border-white/10 bg-slate-950/80 backdrop-blur-md flex flex-col lg:flex-row justify-between items-center gap-12">
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-12 w-full lg:w-auto">
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em]">Gross Subtotal</p>
-                  <p className="text-4xl font-black text-white italic tracking-tighter font-mono">₹{calculateTotals().subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+            <div className="p-4 sm:p-10 border-t border-white/10 bg-slate-950/80 backdrop-blur-md flex flex-col lg:flex-row justify-between items-center gap-4 sm:gap-12">
+              <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-6 sm:gap-12 w-full lg:w-auto">
+                <div className="space-y-1 sm:space-y-2">
+                  <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.5em]">Subtotal</p>
+                  <p className="text-xl sm:text-4xl font-black text-white italic tracking-tighter font-mono leading-none">₹{calculateTotals().subtotal.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em]">Fiscal Levy ({formData.taxRate}%)</p>
-                  <p className="text-4xl font-black text-primary italic tracking-tighter font-mono"><span className="text-slate-500 text-2xl mr-2">+</span>₹{calculateTotals().taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                <div className="space-y-1 sm:space-y-2">
+                  <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.5em]">Tax ({formData.taxRate}%)</p>
+                  <p className="text-xl sm:text-4xl font-black text-primary italic tracking-tighter font-mono leading-none flex items-center"><span className="text-slate-500 text-xs sm:text-2xl mr-1 sm:mr-2">+</span>₹{calculateTotals().taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em]">Consolidated Yield</p>
-                  <p className="text-6xl font-black text-white tracking-tighter font-mono italic leading-none drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">₹{calculateTotals().total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                <div className="space-y-1 sm:space-y-2 col-span-2 md:col-span-1 border-t md:border-t-0 border-white/5 pt-2 md:pt-0">
+                  <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.5em]">Total Yield</p>
+                  <p className="text-2xl sm:text-6xl font-black text-white tracking-tighter font-mono italic leading-none drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">₹{calculateTotals().total.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-10 w-full lg:w-auto">
+              <div className="flex items-center gap-6 sm:gap-10 w-full lg:w-auto">
                 <div className="hidden lg:block w-[1px] h-16 bg-white/10" />
                 <motion.button
                   onClick={handleSave}
                   disabled={isSubmitting}
                   whileHover={!isSubmitting ? { scale: 1.05, y: -5 } : {}}
                   whileTap={!isSubmitting ? { scale: 0.95 } : {}}
-                  className={`px-12 py-6 premium-button rounded-[28px] shadow-2xl relative overflow-hidden group w-full ${isSubmitting ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                  className={`px-6 sm:px-12 py-4 sm:py-6 premium-button rounded-2xl sm:rounded-[28px] shadow-2xl relative overflow-hidden group w-full ${isSubmitting ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                 >
-                  <div className="relative z-10 flex items-center justify-center gap-4">
-                    {isSubmitting ? <Loader2 size={24} className="animate-spin" /> : <CheckCircle size={24} />}
-                    <span className="font-black text-[10px] uppercase tracking-[0.4em]">{isSubmitting ? 'Processing...' : 'Authorize Issuance'}</span>
+                  <div className="relative z-10 flex items-center justify-center gap-3 sm:gap-4">
+                    {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
+                    <span className="font-black text-[9px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.4em]">{isSubmitting ? 'Processing...' : 'Authorize Issuance'}</span>
                   </div>
                 </motion.button>
               </div>
