@@ -84,10 +84,10 @@ export default function CompanySelection() {
             <span className="text-[11px] uppercase tracking-[0.4em] font-black text-primary">Secure Infrastructure Protocol</span>
           </motion.div>
           
-          <h1 className="text-8xl font-black mb-6 tracking-tighter italic leading-none">
+          <h1 className="text-5xl md:text-8xl font-black mb-4 md:mb-6 tracking-tighter italic leading-none">
             <span className="text-white">GATEWAY</span> <span className="gold-text-gradient">CONTROL</span>
           </h1>
-          <p className="text-slate-500 text-xl tracking-[0.6em] uppercase font-light">Select Enterprise Unit</p>
+          <p className="text-slate-500 text-sm md:text-xl tracking-[0.3em] md:tracking-[0.6em] uppercase font-light px-4">Select Enterprise Unit</p>
         </motion.div>
 
         {/* Company Grid */}

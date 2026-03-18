@@ -73,12 +73,12 @@ export default function Home() {
             </motion.div>
 
             {/* Typography Section */}
-            <div className="text-center space-y-4">
+            <header className="text-center space-y-4 px-4">
               <motion.h1
                 initial={{ opacity: 0, letterSpacing: "0.5em" }}
                 animate={{ opacity: 1, letterSpacing: "0.1em" }}
                 transition={{ delay: 0.5, duration: 1.5, ease: "easeOut" }}
-                className="text-7xl font-black italic tracking-tighter"
+                className="text-5xl md:text-7xl font-black italic tracking-tighter"
               >
                 <span className="text-white">MD </span>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-blue-400 to-cyan-400">
@@ -97,11 +97,11 @@ export default function Home() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.2, duration: 0.8 }}
-                className="text-xl font-medium text-slate-400 tracking-[0.3em] uppercase"
+                className="text-sm md:text-xl font-medium text-slate-400 tracking-[0.2em] md:tracking-[0.3em] uppercase"
               >
                 Enterprise Intelligence
               </motion.p>
-            </div>
+            </header>
 
             {/* Progress/Loading Indicator */}
             <div className="mt-20 flex flex-col items-center gap-6">
