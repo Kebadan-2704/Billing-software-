@@ -117,7 +117,7 @@ export default function InvoiceTemplate({ invoice, company, logoUrl }: InvoiceTe
               <div className="space-y-1">
                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Settlement Value</p>
                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black italic tracking-tighter text-white">₹{invoice.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-4xl font-black italic tracking-tighter text-white">\u20B9{invoice.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     <span className="text-xs font-bold text-[#D4AF37] uppercase tracking-widest italic">INR Consolidated</span>
                  </div>
               </div>
@@ -241,7 +241,7 @@ export default function InvoiceTemplate({ invoice, company, logoUrl }: InvoiceTe
                  <div className="space-y-2.5">
                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">
                        <span>Pipeline Subtotal</span>
-                       <span className="text-slate-900 font-mono">₹{invoice.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                       <span className="text-slate-900 font-mono">\u20B9{invoice.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                     
                     {/* GST BREAKDOWN */}
@@ -251,17 +251,17 @@ export default function InvoiceTemplate({ invoice, company, logoUrl }: InvoiceTe
                              <>
                                 <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">
                                    <span>CGST ({gstRate/2}%)</span>
-                                   <span className="text-slate-900 font-mono">₹{(invoice.taxAmount/2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                   <span className="text-slate-900 font-mono">\u20B9{(invoice.taxAmount/2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">
                                    <span>SGST ({gstRate/2}%)</span>
-                                   <span className="text-slate-900 font-mono">₹{(invoice.taxAmount/2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                   <span className="text-slate-900 font-mono">\u20B9{(invoice.taxAmount/2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                 </div>
                              </>
                           ) : (
                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">
                                 <span>IGST ({gstRate}%)</span>
-                                <span className="text-slate-900 font-mono">₹{invoice.taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-slate-900 font-mono">\u20B9{invoice.taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                              </div>
                           )}
                        </div>
@@ -275,7 +275,7 @@ export default function InvoiceTemplate({ invoice, company, logoUrl }: InvoiceTe
                     </div>
                     <div className="text-right">
                        <p className="text-5xl font-black text-slate-950 tracking-tighter italic leading-none flex items-start justify-end">
-                          <span className="text-xl mr-1 mt-1">₹</span>
+                          <span className="text-xl mr-1 mt-1">\u20B9</span>
                           {invoice.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                        </p>
                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-[0.4em] mt-2">Authenticated Settlement Unit</p>

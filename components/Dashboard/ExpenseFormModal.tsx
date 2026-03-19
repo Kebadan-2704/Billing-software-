@@ -383,7 +383,7 @@ export default function ExpenseFormModal({
                         <IndianRupee className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-hover:text-rose-500 transition-colors" size={20} />
                         <input
                           type="number"
-                          placeholder="Amount (Ã¢â€šÂ¹)"
+                          placeholder="Amount (\u20B9)"
                           value={formData.amount || ''}
                           onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
                           className="w-full pl-16 pr-8 py-5 bg-slate-950/40 border border-white/10 rounded-[24px] text-rose-500 font-mono font-black outline-none focus:border-rose-500/50 transition-all text-2xl tracking-tighter placeholder:text-slate-700 placeholder:font-bold shadow-inner"
@@ -456,7 +456,7 @@ export default function ExpenseFormModal({
                         </div>
                         <div className="md:text-right shrink-0">
                           <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em] block mb-3">Asset Value</span>
-                          <p className="text-4xl font-black text-rose-500 tracking-tighter leading-none">Ã¢â€šÂ¹{extractionResult.amount.toLocaleString('en-IN')}</p>
+                          <p className="text-4xl font-black text-rose-500 tracking-tighter leading-none">\u20B9{extractionResult.amount.toLocaleString('en-IN')}</p>
                         </div>
                       </div>
 

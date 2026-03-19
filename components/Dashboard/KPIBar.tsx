@@ -44,7 +44,7 @@ export default function KPIBar({ stats }: KPIBarProps) {
           <div className="relative z-10 flex-1 min-w-0">
             <p className="text-[7px] sm:text-[9px] font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-slate-500 mb-0.5 sm:mb-1 leading-none whitespace-nowrap overflow-visible">{stat.label}</p>
             <p className={`inline-block text-xs sm:text-2xl font-black pr-4 sm:pr-14 whitespace-nowrap tracking-normal overflow-visible ${stat.label === 'Net Liquidity' ? 'gold-text-gradient' : 'text-white'}`} style={{ WebkitBoxDecorationBreak: 'clone', WebkitBackgroundClip: 'text' }}>
-              ₹{stat.val.toLocaleString('en-IN')}
+              \u20B9{stat.val.toLocaleString('en-IN')}
             </p>
           </div>
  
