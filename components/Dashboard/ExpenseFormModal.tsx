@@ -97,57 +97,60 @@ export default function ExpenseFormModal({
 
       let pendingName = ''
       lines.forEach((line) => {
-        const upperLine = line.trim().toUpperCase()
+        const trimmedLine = line.trim()
+        const upperLine = trimmedLine.toUpperCase()
 
-        // Skip table headers and metadata early
+        // Skip metadata lines aggressively
         if (
-          upperLine.includes('PRODUCT') || 
-          upperLine.includes('SERVICE') || 
           upperLine.includes('DATE') || 
           upperLine.includes('SHIPPING') ||
           upperLine.includes('VENDOR') ||
           upperLine.includes('GSTIN') ||
-          upperLine.includes('PO NO') ||
-          line.length < 3
-        ) {
-          return
-        }
+          upperLine.includes('CODE') ||
+          upperLine.includes('ADDRESS') ||
+          trimmedLine.length < 3
+        ) return
 
-        // Skip lines that look like a date
+        // Skip lines that look like a standalone date
         if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) return
 
-        // Robust price pattern: handles 1,234.56, 123.45, etc.
-        const priceMatch = line.match(/((\d{1,3}(?:,\d{3})*|\d+)[\.,]\d{2})/g)
+        // Lenient price pattern: look for numbers with optional decimals and commas
+        // We focus on numbers that appear towards the end of a line or after a name
+        const priceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2}))/g)
         
-        // Comprehensive summary keywords with common OCR variations
-        const isSummaryLine = /(TOTAL|SUBTOTAL|SUB-TOTAL|SUB TOTAL|TOTA|TOTL|NET|BALANCE|GRAND|ROUNDED|ROUND|GST|TAX|VAT)/i.test(upperLine)
+        // Summary keywords regex
+        const isSummary = /(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|ROUND|GST|TAX|VAT|AMOUNT|VALUE)/i.test(upperLine)
 
-        if (priceMatch) {
-          const priceStr = priceMatch[priceMatch.length - 1]
-          const price = parseFloat(priceStr.replace(/,/g, '').replace(' ', ''))
+        if (priceMatches && priceMatches.length > 0) {
+          const mainPriceStr = priceMatches[priceMatches.length - 1]
+          const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(' ', ''))
           
-          if (isSummaryLine) {
-            if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT|VALUE)/i.test(upperLine)) {
+          if (isSummary) {
+            // Update total amount if it seems like a final value
+            if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT)/i.test(upperLine)) {
               totalAmount = Math.max(totalAmount, price)
             }
           } else {
-            // Line item detection
-            let description = line.replace(priceStr, '').replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
+            // Potential line item
+            // Try to extract name: everything before the first price
+            let name = trimmedLine.split(priceMatches[0])[0].replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
             
-            // If the line had text and a price, it's a solid item
-            if (description.length >= 3 && !/^\d+$/.test(description)) {
-              detectedItems.push(`${description} - ₹${price.toLocaleString('en-IN')}`)
-              pendingName = '' // Reset pending name
-            } 
-            // If the line was mostly a price but we had a pending name from a previous line
-            else if (pendingName) {
-              detectedItems.push(`${pendingName} - ₹${price.toLocaleString('en-IN')}`)
+            if (name.length < 3 && pendingName) {
+              name = pendingName
+              pendingName = ''
+            }
+
+            if (name.length >= 3 && !/^\d+$/.test(name)) {
+              detectedItems.push(`${name.toUpperCase()} - ₹${price.toLocaleString('en-IN')}`)
+              pendingName = ''
+            } else if (pendingName) {
+              detectedItems.push(`${pendingName.toUpperCase()} - ₹${price.toLocaleString('en-IN')}`)
               pendingName = ''
             }
           }
-        } else if (!isSummaryLine && upperLine.length > 3) {
-          // If no price found, this might be a product name split from its price
-          const potentialName = line.replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
+        } else if (!isSummary && trimmedLine.length > 3) {
+          // No price found, buffer as potential name if it's text-heavy
+          const potentialName = trimmedLine.replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
           if (potentialName.length >= 3 && !/^\d+$/.test(potentialName)) {
             pendingName = potentialName
           }
