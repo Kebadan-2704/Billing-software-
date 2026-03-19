@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Trash2, CheckCircle, FileText, Loader2, Camera, Scan, Image as ImageIcon } from 'lucide-react'
+import { X, Trash2, CheckCircle, FileText, Loader2, Camera, Scan, Image as ImageIcon, Pencil, Check } from 'lucide-react'
 import { Invoice, InvoiceItem, Client } from '@/lib/types'
 import { createWorker } from 'tesseract.js'
 import Image from 'next/image'
@@ -45,6 +45,8 @@ export default function InvoiceFormModal({
   const [isScanning, setIsScanning] = useState(false)
   const [receiptImage, setReceiptImage] = useState<string | null>(null)
   const [ocrProgress, setOcrProgress] = useState(0)
+  const [editingItemIdx, setEditingItemIdx] = useState<number | null>(null)
+  const [editingItemData, setEditingItemData] = useState<{ description: string; unitPrice: number } | null>(null)
 
   const [lineItems, setLineItems] = useState<InvoiceItem[]>([
     { id: '1', description: '', quantity: 1, unitPrice: 0, amount: 0, taxable: true }
@@ -143,8 +145,51 @@ export default function InvoiceFormModal({
     if (!receiptImage) return
     setIsScanning(true)
     setOcrProgress(0)
-    
+    const OCR_API_URL = process.env.NEXT_PUBLIC_OCR_API_URL
+
     try {
+      // ── PATH 1: Render OCR API (EasyOCR - much more accurate) ──
+      if (OCR_API_URL) {
+        try {
+          setOcrProgress(20)
+          const base64 = receiptImage.split(',')[1]
+          const res = await fetch(`${OCR_API_URL}/extract`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64 }),
+            signal: AbortSignal.timeout(30000) // 30s timeout
+          })
+
+          if (res.ok) {
+            const data = await res.json()
+            setOcrProgress(100)
+            const detectedItems: InvoiceItem[] = (data.items || []).map((it: { name: string; price: number }, idx: number) => ({
+              id: Date.now().toString() + idx,
+              description: it.name,
+              quantity: 1,
+              unitPrice: it.price,
+              amount: it.price,
+              taxable: true
+            }))
+
+            if (detectedItems.length > 0) {
+              if (lineItems.length === 1 && !lineItems[0].description) {
+                setLineItems(detectedItems)
+              } else {
+                setLineItems([...lineItems, ...detectedItems])
+              }
+              setIsScanning(false)
+              return
+            }
+          }
+        } catch (apiErr) {
+          console.warn('Render OCR API unavailable, falling back to Tesseract:', apiErr)
+          setOcrProgress(0)
+        }
+      }
+
+      // ── PATH 2: Tesseract fallback ──
+      setOcrProgress(10)
       const worker = await createWorker('eng', 1, {
         logger: m => {
           if (m.status === 'recognizing text') {
@@ -617,16 +662,18 @@ export default function InvoiceFormModal({
                       {lineItems.map((item, idx) => (
                         <tr key={item.id} className="group/row hover:bg-white/[0.02] transition-colors">
                           <td className="px-4 sm:px-6 py-4">
-                            <input
-                              value={item.description}
-                              onChange={(e) => {
-                                const newItems = [...lineItems]
-                                newItems[idx].description = e.target.value
-                                setLineItems(newItems)
-                              }}
-                              className="w-full bg-transparent outline-none text-white font-bold text-xs sm:text-base border-b border-transparent focus:border-emerald-500/30 transition-all placeholder:text-slate-800"
-                              placeholder="Service..."
-                            />
+                            {editingItemIdx === idx ? (
+                              <input
+                                autoFocus
+                                value={editingItemData?.description || ''}
+                                onChange={(e) => setEditingItemData(prev => prev ? { ...prev, description: e.target.value } : null)}
+                                className="w-full bg-slate-950/50 border border-emerald-500/30 rounded-lg px-2 py-1 text-white font-bold text-xs sm:text-base outline-none"
+                              />
+                            ) : (
+                              <span className="text-white font-bold text-xs sm:text-base block truncate max-w-[200px] sm:max-w-none">
+                                {item.description || <span className="text-slate-700 italic">Empty Resource</span>}
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 sm:px-6 py-4">
                             <input
@@ -634,7 +681,7 @@ export default function InvoiceFormModal({
                               value={item.quantity}
                               onChange={(e) => {
                                 const newItems = [...lineItems]
-                                newItems[idx].quantity = Math.max(0, parseFloat(e.target.value) || 0)
+                                newItems[idx].quantity = Math.max(1, parseFloat(e.target.value) || 0)
                                 newItems[idx].amount = newItems[idx].quantity * newItems[idx].unitPrice
                                 setLineItems(newItems)
                               }}
@@ -642,28 +689,61 @@ export default function InvoiceFormModal({
                             />
                           </td>
                           <td className="px-4 sm:px-6 py-4">
-                            <input
-                              type="number"
-                              value={item.unitPrice}
-                              onChange={(e) => {
-                                const newItems = [...lineItems]
-                                newItems[idx].unitPrice = Math.max(0, parseFloat(e.target.value) || 0)
-                                newItems[idx].amount = newItems[idx].quantity * newItems[idx].unitPrice
-                                setLineItems(newItems)
-                              }}
-                              className="w-full bg-transparent outline-none text-white font-bold font-mono text-sm sm:text-base"
-                            />
+                            {editingItemIdx === idx ? (
+                              <input
+                                type="number"
+                                value={editingItemData?.unitPrice || 0}
+                                onChange={(e) => setEditingItemData(prev => prev ? { ...prev, unitPrice: parseFloat(e.target.value) || 0 } : null)}
+                                className="w-full bg-slate-950/50 border border-emerald-500/30 rounded-lg px-2 py-1 text-white font-bold font-mono text-sm sm:text-base outline-none"
+                              />
+                            ) : (
+                              <span className="text-white font-bold font-mono text-sm sm:text-base">
+                                ₹{item.unitPrice.toLocaleString('en-IN')}
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 sm:px-6 py-4 text-right">
                             <span className="text-white font-black font-mono tracking-tighter text-sm sm:text-base">₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</span>
                           </td>
                           <td className="px-4 sm:px-6 py-4 text-right">
-                            <button 
-                              onClick={() => lineItems.length > 1 && setLineItems(lineItems.filter(i => i.id !== item.id))}
-                              className="text-slate-700 hover:text-rose-500 transition-colors opacity-0 group-hover/row:opacity-100 sm:opacity-100"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              {editingItemIdx === idx ? (
+                                <button
+                                  onClick={() => {
+                                    if (editingItemData) {
+                                      const newItems = [...lineItems]
+                                      newItems[idx].description = editingItemData.description
+                                      newItems[idx].unitPrice = editingItemData.unitPrice
+                                      newItems[idx].amount = newItems[idx].quantity * editingItemData.unitPrice
+                                      setLineItems(newItems)
+                                    }
+                                    setEditingItemIdx(null)
+                                    setEditingItemData(null)
+                                  }}
+                                  className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400 hover:bg-emerald-500/30 transition shadow-lg shadow-emerald-500/10"
+                                >
+                                  <Check size={14} />
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setEditingItemIdx(idx)
+                                      setEditingItemData({ description: item.description, unitPrice: item.unitPrice })
+                                    }}
+                                    className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition sm:opacity-0 group-hover/row:opacity-100"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                  <button 
+                                    onClick={() => lineItems.length > 1 && setLineItems(lineItems.filter(i => i.id !== item.id))}
+                                    className="p-2 bg-white/5 rounded-lg text-slate-700 hover:text-rose-500 hover:bg-rose-500/10 transition sm:opacity-0 group-hover/row:opacity-100"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
