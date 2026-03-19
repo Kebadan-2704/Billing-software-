@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -78,7 +78,42 @@ export default function ExpenseFormModal({
     setIsExtracting(true)
     setOcrProgress(0)
 
+    const OCR_API_URL = process.env.NEXT_PUBLIC_OCR_API_URL
+
     try {
+      // ── PATH 1: Render OCR API (EasyOCR - much more accurate) ──
+      if (OCR_API_URL) {
+        setOcrProgress(20)
+        const base64 = receiptImage.split(',')[1]
+        const res = await fetch(`${OCR_API_URL}/extract`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64 })
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          setOcrProgress(100)
+          const detectedItems = (data.items || []).map((it: { name: string; price: number }) => ({
+            name: it.name,
+            price: it.price
+          }))
+          const finalResult = {
+            description: data.description || (detectedItems[0]?.name ?? 'Extracted Expense'),
+            amount: data.total || detectedItems.reduce((s: number, it: { price: number }) => s + it.price, 0),
+            category: 'General',
+            items: detectedItems
+          }
+          setExtractionResult(finalResult)
+          setFormData({ ...formData, description: finalResult.description, amount: finalResult.amount, category: finalResult.category })
+          setIsExtracting(false)
+          setShowConfirmation(true)
+          return
+        }
+      }
+
+      // ── PATH 2: Tesseract fallback ──
+      setOcrProgress(10)
       const worker = await createWorker('eng', 1, {
         logger: m => {
           if (m.status === 'recognizing text') {
