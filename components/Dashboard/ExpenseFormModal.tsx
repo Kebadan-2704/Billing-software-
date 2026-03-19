@@ -99,34 +99,46 @@ export default function ExpenseFormModal({
       let isTableStarted = false
       let isTableFinished = false
 
-      ocrLines.forEach((line, idx) => {
+      ocrLines.forEach((line, _idx) => {
         const trimmedLine = line.trim()
         const upperLine = trimmedLine.toUpperCase()
 
-        // TRIGGER: Start of table
-        if (!isTableStarted && (upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') || upperLine.includes('NAME'))) {
-          if (upperLine.includes('RATE') || upperLine.includes('PRICE') || upperLine.includes('AMOUNT')) {
+        // TRIGGER: Start of table (must come BEFORE garbage filter)
+        if (!isTableStarted && (
+          upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') ||
+          upperLine.includes('DESCRIPTION') || upperLine.includes('ITEM')
+        )) {
+          if (
+            upperLine.includes('RATE') || upperLine.includes('PRICE') ||
+            upperLine.includes('AMOUNT') || upperLine.includes('QTY') ||
+            upperLine.includes('VALUE') || upperLine.includes('TAXABLE')
+          ) {
             isTableStarted = true
             return
           }
         }
 
-        // TRIGGER: End of table
-        if (isTableStarted && !isTableFinished && (upperLine.startsWith('TOTAL') || upperLine.includes('SUBTOTAL') || upperLine.startsWith('GRAND'))) {
+        // TRIGGER: End of table (must come BEFORE garbage filter)
+        if (isTableStarted && !isTableFinished && (
+          upperLine.startsWith('TOTAL') || upperLine.includes('SUBTOTAL') ||
+          upperLine.startsWith('GRAND') || upperLine.startsWith('AMOUNT IN WORDS')
+        )) {
           isTableStarted = false
           isTableFinished = true
         }
 
-        // Noise filter
-        const isGarbage = upperLine.includes('DATE') || upperLine.includes('SHIP') || upperLine.includes('VENDOR') ||
-                          upperLine.includes('GSTIN') || upperLine.includes('CODE') || upperLine.includes('ADDRESS') ||
-                          upperLine.includes('HSN') || upperLine.includes('HSM') || upperLine.includes('EMAIL') ||
-                          upperLine.includes('PHONE') || trimmedLine.length < 3
+        // Noise filter (runs AFTER triggers so table headers are never discarded)
+        const isGarbage = (
+          upperLine.includes('GSTIN') || upperLine.includes('EMAIL') ||
+          upperLine.includes('PAN') || upperLine.includes('PHONE') ||
+          upperLine.includes('ADDRESS') || upperLine.includes('STATE CODE') ||
+          trimmedLine.length < 3
+        )
         if (isGarbage) return
 
         // Summary detection
         const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
-                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL)/i.test(upperLine)
+                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL|AMOUNT PAYABLE)/i.test(upperLine)
 
         if (isSummary) {
           const summaryMatches = trimmedLine.match(/(\d[\d,\s]*(?:[\.,]\d{2})?)/g)
@@ -139,7 +151,7 @@ export default function ExpenseFormModal({
 
         if (isTableStarted) {
           // v11: Name is strictly the leading alphabetic text before any digit sequence
-          // e.g. "1 cleanic 10000 1000 000..." â†’ name="cleanic"
+          // e.g. "1 cleanic 10000 1000 000..." Ã¢â€ â€™ name="cleanic"
           const nameMatch = trimmedLine.match(/^[\d\s]*([a-zA-Z][a-zA-Z\s]{1,30?}?)(?=\s{2,}|\s\d|\d{2,}|$)/)
           const rawName = nameMatch ? nameMatch[1].trim() : ''
           
@@ -329,7 +341,7 @@ export default function ExpenseFormModal({
                         <IndianRupee className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-hover:text-rose-500 transition-colors" size={20} />
                         <input
                           type="number"
-                          placeholder="Amount (â‚¹)"
+                          placeholder="Amount (Ã¢â€šÂ¹)"
                           value={formData.amount || ''}
                           onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
                           className="w-full pl-16 pr-8 py-5 bg-slate-950/40 border border-white/10 rounded-[24px] text-rose-500 font-mono font-black outline-none focus:border-rose-500/50 transition-all text-2xl tracking-tighter placeholder:text-slate-700 placeholder:font-bold shadow-inner"
@@ -402,7 +414,7 @@ export default function ExpenseFormModal({
                         </div>
                         <div className="md:text-right shrink-0">
                           <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em] block mb-3">Asset Value</span>
-                          <p className="text-4xl font-black text-rose-500 tracking-tighter leading-none">â‚¹{extractionResult.amount.toLocaleString('en-IN')}</p>
+                          <p className="text-4xl font-black text-rose-500 tracking-tighter leading-none">Ã¢â€šÂ¹{extractionResult.amount.toLocaleString('en-IN')}</p>
                         </div>
                       </div>
 
@@ -449,11 +461,11 @@ export default function ExpenseFormModal({
                                   </>
                                 ) : (
                                   <>
-                                    <span className="flex-1 truncate">{item.name} — ₹{item.price.toLocaleString('en-IN')}</span>
+                                    <span className="flex-1 truncate">{item.name} â€” â‚¹{item.price.toLocaleString('en-IN')}</span>
                                     <span className="text-slate-600 italic mr-2 shrink-0">VERIFIED</span>
                                     <button
                                       onClick={() => { setEditingItemIdx(i); setEditingItemData({ name: item.name, price: item.price }) }}
-                                      className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition opacity-0 group-hover:opacity-100 shrink-0"
+                                      className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition shrink-0"
                                     >
                                       <Pencil size={11} />
                                     </button>

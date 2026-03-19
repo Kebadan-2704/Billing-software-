@@ -176,42 +176,41 @@ export default function InvoiceFormModal({
         
         console.log(`Line ${index}: "${trimmedLine}" (Table: ${isTableStarted})`)
 
-        // TRIGGER: Start of table
-        if (!isTableStarted && (upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') || upperLine.includes('NAME'))) {
-          if (upperLine.includes('RATE') || upperLine.includes('PRICE') || upperLine.includes('AMOUNT')) {
+        // TRIGGER: Start of table (must come BEFORE garbage filter)
+        if (!isTableStarted && (
+          upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') ||
+          upperLine.includes('DESCRIPTION') || upperLine.includes('ITEM')
+        )) {
+          if (
+            upperLine.includes('RATE') || upperLine.includes('PRICE') ||
+            upperLine.includes('AMOUNT') || upperLine.includes('QTY') ||
+            upperLine.includes('VALUE') || upperLine.includes('TAXABLE')
+          ) {
             isTableStarted = true
-            console.log(`  >>> TABLE STARTED <<<`)
             return
           }
         }
 
-        // TRIGGER: End of table
-        if (isTableStarted && !isTableFinished && (upperLine.startsWith('TOTAL') || upperLine.includes('SUBTOTAL') || upperLine.startsWith('GRAND'))) {
+        // TRIGGER: End of table (must come BEFORE garbage filter)
+        if (isTableStarted && !isTableFinished && (
+          upperLine.startsWith('TOTAL') || upperLine.includes('SUBTOTAL') ||
+          upperLine.startsWith('GRAND') || upperLine.startsWith('AMOUNT IN WORDS')
+        )) {
           isTableStarted = false
           isTableFinished = true
-          console.log(`  >>> TABLE FINISHED <<<`)
         }
 
-        // Garbage/Noise Filter
-        const isGarbage = upperLine.includes('DATE') || 
-                          upperLine.includes('SHIP') ||
-                          upperLine.includes('VENDOR') ||
-                          upperLine.includes('GSTIN') ||
-                          upperLine.includes('CODE') ||
-                          upperLine.includes('ADDRESS') ||
-                          upperLine.includes('HSN') ||
-                          upperLine.includes('HSM') ||
-                          upperLine.includes('EMAIL') ||
-                          upperLine.includes('PHONE') ||
-                          trimmedLine.length < 3
-
-        if (isGarbage) {
-          console.log(`  -> Skipped (Garbage/Metadata)`)
-          return
-        }
+        // Noise filter (runs AFTER triggers so table headers are never discarded)
+        const isGarbage = (
+          upperLine.includes('GSTIN') || upperLine.includes('EMAIL') ||
+          upperLine.includes('PAN') || upperLine.includes('PHONE') ||
+          upperLine.includes('ADDRESS') || upperLine.includes('STATE CODE') ||
+          trimmedLine.length < 3
+        )
+        if (isGarbage) return
 
         const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
-                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL)/i.test(upperLine)
+                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL|AMOUNT PAYABLE)/i.test(upperLine)
 
         if (isSummary) {
           const summaryMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2})?)/g)
