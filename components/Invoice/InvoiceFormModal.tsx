@@ -176,7 +176,6 @@ export default function InvoiceFormModal({
         if (
           upperLine.includes('PRODUCT') || 
           upperLine.includes('SERVICE') || 
-          upperLine.includes('AMOUNT') || 
           upperLine.includes('DATE') || 
           upperLine.includes('SHIPPING') ||
           upperLine.includes('VENDOR') ||
@@ -188,18 +187,22 @@ export default function InvoiceFormModal({
         // Skip lines that look like a date (e.g. September 26, 2017)
         if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) return
         
-        // Stricter price pattern: must be preceded by space/start and followed by space/end
-        // Handles 123.45, 1,234.56, etc.
-        const priceMatch = line.match(/(?:\s|^)(\d+[\.,]\d{2})(?:\s|$)/g)
+        // Robust price pattern: handles 1,234.56, 123.45, etc.
+        const priceMatch = line.match(/((\d{1,3}(?:,\d{3})*|\d+)[\.,]\d{2})/g)
         
         if (priceMatch) {
-          const priceStr = priceMatch[priceMatch.length - 1].trim()
-          const price = parseFloat(priceStr.replace(',', '.'))
-          const isSummaryLine = summaryKeywords.some(kw => upperLine.includes(kw))
+          const priceStr = priceMatch[priceMatch.length - 1]
+          const price = parseFloat(priceStr.replace(/,/g, '').replace(' ', ''))
+          
+          // Fuzzy summary keywords to handle OCR errors like "TOTA" instead of "TOTAL"
+          const isSummaryLine = summaryKeywords.some(kw => upperLine.includes(kw)) || 
+                                upperLine.includes('TOTA') || 
+                                upperLine.includes('TOTL') ||
+                                upperLine.includes('SUB')
           
           if (isSummaryLine) {
             // Likely a summary or total, update total but don't add as item
-            if (upperLine.includes('TOTAL') || upperLine.includes('NET') || upperLine.includes('BALANCE')) {
+            if (upperLine.includes('TOTA') || upperLine.includes('TOTL') || upperLine.includes('NET') || upperLine.includes('BALANCE')) {
               detectedTotal = Math.max(detectedTotal, price)
             }
             return // Skip adding summary lines as items

@@ -108,7 +108,6 @@ export default function ExpenseFormModal({
         if (
           upperLine.includes('PRODUCT') || 
           upperLine.includes('SERVICE') || 
-          upperLine.includes('AMOUNT') || 
           upperLine.includes('DATE') || 
           upperLine.includes('SHIPPING') ||
           upperLine.includes('VENDOR') ||
@@ -120,23 +119,34 @@ export default function ExpenseFormModal({
         // Skip lines that look like a date
         if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) return
 
-        // Stricter price pattern
-        const priceMatch = line.match(/(?:\s|^)(\d+[\.,]\d{2})(?:\s|$)/g)
+        // Robust price pattern: handles 1,234.56, 123.45, etc.
+        // We look for a number with a decimal and 2 digits at the end of a segment
+        const priceMatch = line.match(/((\d{1,3}(?:,\d{3})*|\d+)[\.,]\d{2})/g)
         
         if (priceMatch) {
-          const priceStr = priceMatch[priceMatch.length - 1].trim()
-          const price = parseFloat(priceStr.replace(',', '.'))
-          const isSummaryLine = summaryKeywords.some(kw => upperLine.includes(kw))
+          const priceStr = priceMatch[priceMatch.length - 1]
+          // Convert "11,200.00" to 11200.00
+          const price = parseFloat(priceStr.replace(/,/g, '').replace(' ', ''))
           
+          // Fuzzy summary keywords to handle OCR errors like "TOTA" instead of "TOTAL"
+          const isSummaryLine = summaryKeywords.some(kw => upperLine.includes(kw)) || 
+                                upperLine.includes('TOTA') || 
+                                upperLine.includes('TOTL') ||
+                                upperLine.includes('SUB')
+
           if (isSummaryLine) {
-            if (upperLine.includes('TOTAL') || upperLine.includes('NET') || upperLine.includes('BALANCE') || upperLine.includes('AMOUNT')) {
+            if (upperLine.includes('TOTA') || upperLine.includes('TOTL') || upperLine.includes('NET') || upperLine.includes('BALANCE') || upperLine.includes('AMOUNT')) {
               totalAmount = Math.max(totalAmount, price)
             }
           } else {
+            // Likely a line item
+            // Clean up description: remove the price and leading numbers/bullets
             let description = line.replace(priceStr, '').replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
-            if (description.length < 3 || /^\d+$/.test(description)) return
             
-            detectedItems.push(`${description} - ₹${price.toLocaleString()}`)
+            // If the name is too short or just numbers, skip it
+            if (description.length < 3 || /^\d+$/.test(description)) return
+
+            detectedItems.push(`${description} - ₹${price.toLocaleString('en-IN')}`)
           }
         }
       })
