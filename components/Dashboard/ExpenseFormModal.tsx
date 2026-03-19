@@ -101,7 +101,7 @@ export default function ExpenseFormModal({
 
         console.log(`Line ${idx}: "${trimmedLine}"`)
 
-        // Skip metadata lines aggressively
+        // Skip metadata lines aggressively - include address and footer noise
         if (
           upperLine.includes('DATE') || 
           upperLine.includes('SHIPPING') ||
@@ -109,28 +109,25 @@ export default function ExpenseFormModal({
           upperLine.includes('GSTIN') ||
           upperLine.includes('CODE') ||
           upperLine.includes('ADDRESS') ||
+          upperLine.includes('EMAIL') ||
+          upperLine.includes('PHONE') ||
           trimmedLine.length < 3
         ) {
-          console.log(`  -> Skipped (Metadata)`)
+          console.log(`  -> Skipped (Metadata/Noise)`)
           return
         }
 
-        // Skip lines that look like a standalone date
-        if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) {
-          console.log(`  -> Skipped (Date)`)
-          return
-        }
-
-        // Lenient price pattern: look for numbers with optional decimals and commas
-        const priceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2}))/g)
+        // Lenient price pattern: decimals are now OPTIONAL (?, and handle varied separators)
+        const priceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2})?)/g)
         
-        // Summary keywords regex - more selective
+        // Refined summary detection: Only if it starts with a keyword OR contains multiple summary signals
         const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
-                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL)/i.test(upperLine)
+                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL)/i.test(upperLine)
 
         if (priceMatches && priceMatches.length > 0) {
+          // Find the most likely price (usually the last one on the line)
           const mainPriceStr = priceMatches[priceMatches.length - 1]
-          const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(' ', ''))
+          const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
           console.log(`  -> Found Price: ${price} (from "${mainPriceStr}")`)
           
           if (isSummary) {
@@ -140,10 +137,13 @@ export default function ExpenseFormModal({
               console.log(`  -> Updated totalAmount to ${totalAmount}`)
             }
           } else {
-            // Potential line item
-            let name = trimmedLine.split(priceMatches[0])[0].replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
-            console.log(`  -> Potential Item Name: "${name}"`)
+            // Item row: Name is everything before the FIRST detected price
+            const firstPriceStr = priceMatches[0]
+            const firstPriceIdx = trimmedLine.indexOf(firstPriceStr)
+            let name = trimmedLine.substring(0, firstPriceIdx).replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s]/gi, ' ').trim()
             
+            console.log(`  -> Extracted Name: "${name}"`)
+
             if (name.length < 3 && pendingName) {
               name = pendingName
               pendingName = ''
@@ -161,8 +161,8 @@ export default function ExpenseFormModal({
             }
           }
         } else if (!isSummary && trimmedLine.length > 3) {
-          // No price found, buffer as potential name if it's text-heavy
-          const potentialName = trimmedLine.replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
+          // No price, but looks like a name (long text, not all numbers)
+          const potentialName = trimmedLine.replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s]/gi, ' ').trim()
           if (potentialName.length >= 3 && !/^\d+$/.test(potentialName)) {
             pendingName = potentialName
             console.log(`  -> Buffered as pendingName: "${pendingName}"`)

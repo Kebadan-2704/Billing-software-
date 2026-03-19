@@ -181,41 +181,39 @@ export default function InvoiceFormModal({
           upperLine.includes('GSTIN') ||
           upperLine.includes('CODE') ||
           upperLine.includes('ADDRESS') ||
+          upperLine.includes('EMAIL') ||
+          upperLine.includes('PHONE') ||
           trimmedLine.length < 3
         ) {
-          console.log(`  -> Skipped (Metadata)`)
-          return
-        }
-
-        // Skip lines that look like a standalone date
-        if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) {
-          console.log(`  -> Skipped (Date)`)
+          console.log(`  -> Skipped (Metadata/Noise)`)
           return
         }
         
-        // Lenient price pattern: handles 1,234.56, 123.45, etc.
-        const priceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2}))/g)
+        // Lenient price pattern: decimals are OPTIONAL now
+        const priceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2})?)/g)
         
         // Comprehensive summary keywords regex
         const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
-                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL)/i.test(upperLine)
+                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL)/i.test(upperLine)
 
         if (priceMatches && priceMatches.length > 0) {
           const mainPriceStr = priceMatches[priceMatches.length - 1]
-          const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(' ', ''))
+          const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
           console.log(`  -> Found Price: ${price} (from "${mainPriceStr}")`)
           
           if (isSummary) {
             console.log(`  -> Summary Line Detected`)
-            // Update total amount if it seems like a final value
             if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT)/i.test(upperLine)) {
               detectedTotal = Math.max(detectedTotal, price)
               console.log(`  -> Updated detectedTotal to ${detectedTotal}`)
             }
           } else {
-            // Potential line item
-            let name = trimmedLine.split(priceMatches[0])[0].replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
-            console.log(`  -> Potential Item Name: "${name}"`)
+            // Item row: Everything before the FIRST price
+            const firstPriceStr = priceMatches[0]
+            const firstPriceIdx = trimmedLine.indexOf(firstPriceStr)
+            let name = trimmedLine.substring(0, firstPriceIdx).replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s]/gi, ' ').trim()
+            
+            console.log(`  -> Extracted Name: "${name}"`)
             
             if (name.length < 3 && pendingName) {
               name = pendingName
@@ -248,8 +246,7 @@ export default function InvoiceFormModal({
             }
           }
         } else if (!isSummary && trimmedLine.length > 3) {
-          // No price found, buffer as potential name if it's text-heavy
-          const potentialName = trimmedLine.replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
+          const potentialName = trimmedLine.replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s]/gi, ' ').trim()
           if (potentialName.length >= 3 && !/^\d+$/.test(potentialName)) {
             pendingName = potentialName
             console.log(`  -> Buffered as pendingName: "${pendingName}"`)
