@@ -174,10 +174,10 @@ export default function InvoiceFormModal({
         const trimmedLine = line.trim()
         const upperLine = trimmedLine.toUpperCase()
         
-        console.log(`Line ${index}: "${trimmedLine}" (TableStarted: ${isTableStarted})`)
+        console.log(`Line ${index}: "${trimmedLine}" (Table: ${isTableStarted})`)
 
         // TRIGGER: Start of table
-        if (!isTableStarted && (upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') || upperLine.includes('DESCRIPTION') || upperLine.includes('NAME'))) {
+        if (!isTableStarted && (upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') || upperLine.includes('NAME'))) {
           if (upperLine.includes('RATE') || upperLine.includes('PRICE') || upperLine.includes('AMOUNT')) {
             isTableStarted = true
             console.log(`  >>> TABLE STARTED <<<`)
@@ -192,74 +192,84 @@ export default function InvoiceFormModal({
           console.log(`  >>> TABLE FINISHED <<<`)
         }
 
-        // Skip metadata noise
-        const isMetadata = upperLine.includes('DATE') || 
-                           upperLine.includes('SHIPPING') ||
-                           upperLine.includes('VENDOR') ||
-                           upperLine.includes('GSTIN') ||
-                           upperLine.includes('CODE') ||
-                           upperLine.includes('ADDRESS') ||
-                           upperLine.includes('EMAIL') ||
-                           upperLine.includes('PHONE') ||
-                           upperLine.includes('HSN')
+        // Garbage/Noise Filter
+        const isGarbage = upperLine.includes('DATE') || 
+                          upperLine.includes('SHIP') ||
+                          upperLine.includes('VENDOR') ||
+                          upperLine.includes('GSTIN') ||
+                          upperLine.includes('CODE') ||
+                          upperLine.includes('ADDRESS') ||
+                          upperLine.includes('HSN') ||
+                          upperLine.includes('HSM') ||
+                          upperLine.includes('EMAIL') ||
+                          upperLine.includes('PHONE') ||
+                          trimmedLine.length < 3
 
-        if (isMetadata) {
-          console.log(`  -> Skipped (Metadata/Noise)`)
+        if (isGarbage) {
+          console.log(`  -> Skipped (Garbage/Metadata)`)
           return
         }
         
-        // Price regex: Require decimals for items
-        const priceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2}))/g)
-        const summaryPriceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2})?)/g)
+        // 1. Explicit price (with dot)
+        const explicitPriceMatch = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)[\.,]\d{2})/g)
+        
+        // 2. Implicit price (missing dot recovery)
+        const implicitPriceMatch = trimmedLine.match(/(\d{4,10})$/g)
         
         const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
                           /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL)/i.test(upperLine)
 
-        if (isSummary && summaryPriceMatches) {
-          const mainPriceStr = summaryPriceMatches[summaryPriceMatches.length - 1]
-          const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
-          if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT)/i.test(upperLine)) {
-            detectedTotal = Math.max(detectedTotal, price)
-            console.log(`  -> Summary Found: ${price}`)
+        if (isSummary) {
+          const summaryMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2})?)/g)
+          if (summaryMatches) {
+            const price = parseFloat(summaryMatches[summaryMatches.length - 1].replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
+            if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT)/i.test(upperLine)) {
+              detectedTotal = Math.max(detectedTotal, price)
+              console.log(`  -> Summary Confirmed: ${price}`)
+            }
           }
           return
         }
 
-        if (isTableStarted && priceMatches && priceMatches.length > 0) {
-          const mainPriceStr = priceMatches[priceMatches.length - 1]
-          const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
-          console.log(`  -> Found Item Price: ${price}`)
-          
-          // Item row: Name is everything before the FIRST detected price
-          const firstPriceStr = priceMatches[0]
-          const firstPriceIdx = trimmedLine.indexOf(firstPriceStr)
-          let name = trimmedLine.substring(0, firstPriceIdx).replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s].*$/g, '').trim()
-          
-          console.log(`  -> Extracted Name: "${name}"`)
-          
-          if (name.length < 3 && pendingName) {
-            name = pendingName
-            pendingName = ''
-            console.log(`  -> Using pendingName: "${name}"`)
+        if (isTableStarted) {
+          let price = 0
+          let anchor = ''
+
+          if (explicitPriceMatch) {
+            anchor = explicitPriceMatch[explicitPriceMatch.length - 1]
+            price = parseFloat(anchor.replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
+            console.log(`  -> Explicit Price: ${price}`)
+          } else if (implicitPriceMatch) {
+            anchor = implicitPriceMatch[0]
+            const raw = parseInt(anchor)
+            price = raw / 100
+            console.log(`  -> Implicit Price Recovered: ${price}`)
           }
 
-          if (name.length >= 3 && !/^\d+$/.test(name)) {
-            detectedItems.push({
-              id: Date.now().toString() + index,
-              description: name.toUpperCase(),
-              quantity: 1,
-              unitPrice: price,
-              amount: price,
-              taxable: true
-            })
-            console.log(`  -> Added to Items`)
-            pendingName = ''
-          }
-        } else if (isTableStarted && !isSummary && trimmedLine.length > 3) {
-          const potentialName = trimmedLine.replace(/^[\d\s\.\|/-]+/, '').trim()
-          if (potentialName.length >= 3 && !/^\d+$/.test(potentialName) && !upperLine.includes('AMOUNT')) {
-            pendingName = potentialName
-            console.log(`  -> Buffered as pendingName: "${pendingName}"`)
+          if (price > 0 && anchor) {
+            const firstAnchorIdx = trimmedLine.indexOf(anchor)
+            let name = trimmedLine.substring(0, firstAnchorIdx).replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s].*$/g, '').trim()
+            
+            if (name.length < 3 && pendingName) {
+              name = pendingName
+              pendingName = ''
+            }
+
+            if (name.length >= 3 && !/^\d+$/.test(name)) {
+              detectedItems.push({
+                id: Date.now().toString() + index,
+                description: name.toUpperCase(),
+                quantity: 1,
+                unitPrice: price,
+                amount: price,
+                taxable: true
+              })
+              console.log(`  -> Item Added: ${name}`)
+              pendingName = ''
+            }
+          } else if (trimmedLine.length > 3 && !/^\d+$/.test(trimmedLine)) {
+            pendingName = trimmedLine.replace(/^[\d\s\.\|/-]+/, '').trim()
+            console.log(`  -> Name Buffered: ${pendingName}`)
           }
         }
       })
