@@ -209,13 +209,7 @@ export default function InvoiceFormModal({
           console.log(`  -> Skipped (Garbage/Metadata)`)
           return
         }
-        
-        // 1. Explicit price (with dot)
-        const explicitPriceMatch = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)[\.,]\d{2})/g)
-        
-        // 2. Implicit price (missing dot recovery)
-        const implicitPriceMatch = trimmedLine.match(/(\d{4,10})$/g)
-        
+
         const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
                           /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL)/i.test(upperLine)
 
@@ -232,44 +226,43 @@ export default function InvoiceFormModal({
         }
 
         if (isTableStarted) {
-          let price = 0
-          let anchor = ''
+          // v11: Name is strictly the leading alphabetic text before any digit column
+          const nameMatch = trimmedLine.match(/^[\d\s]*([a-zA-Z][a-zA-Z\s]{1,30}?)(?=\s{2,}|\s\d|\d{2,}|$)/)
+          const rawName = nameMatch ? nameMatch[1].trim() : ''
 
-          if (explicitPriceMatch) {
-            anchor = explicitPriceMatch[explicitPriceMatch.length - 1]
-            price = parseFloat(anchor.replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
-            console.log(`  -> Explicit Price: ${price}`)
-          } else if (implicitPriceMatch) {
-            anchor = implicitPriceMatch[0]
-            const raw = parseInt(anchor)
-            price = raw / 100
-            console.log(`  -> Implicit Price Recovered: ${price}`)
+          // Price: last explicit decimal number on the line (the 'Amount' column)
+          const explicitPrices = trimmedLine.match(/(\d{1,3}(?:,\d{3})*\.\d{2})/g)
+          const implicitTrailing = trimmedLine.match(/(\d{4,10})(?:\s*$)/g)
+
+          let price = 0
+          if (explicitPrices) {
+            price = parseFloat(explicitPrices[explicitPrices.length - 1].replace(/,/g, ''))
+          } else if (implicitTrailing) {
+            price = parseInt(implicitTrailing[0]) / 100
           }
 
-          if (price > 0 && anchor) {
-            const firstAnchorIdx = trimmedLine.indexOf(anchor)
-            let name = trimmedLine.substring(0, firstAnchorIdx).replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s].*$/g, '').trim()
-            
-            if (name.length < 3 && pendingName) {
-              name = pendingName
-              pendingName = ''
-            }
-
-            if (name.length >= 3 && !/^\d+$/.test(name)) {
-              detectedItems.push({
-                id: Date.now().toString() + index,
-                description: name.toUpperCase(),
-                quantity: 1,
-                unitPrice: price,
-                amount: price,
-                taxable: true
-              })
-              console.log(`  -> Item Added: ${name}`)
-              pendingName = ''
-            }
-          } else if (trimmedLine.length > 3 && !/^\d+$/.test(trimmedLine)) {
-            pendingName = trimmedLine.replace(/^[\d\s\.\|/-]+/, '').trim()
-            console.log(`  -> Name Buffered: ${pendingName}`)
+          if (rawName.length >= 2 && price > 0) {
+            detectedItems.push({
+              id: Date.now().toString() + index,
+              description: rawName.toUpperCase(),
+              quantity: 1,
+              unitPrice: price,
+              amount: price,
+              taxable: true
+            })
+            pendingName = ''
+          } else if (rawName.length >= 2) {
+            pendingName = rawName.toUpperCase()
+          } else if (price > 0 && pendingName) {
+            detectedItems.push({
+              id: Date.now().toString() + index,
+              description: pendingName,
+              quantity: 1,
+              unitPrice: price,
+              amount: price,
+              taxable: true
+            })
+            pendingName = ''
           }
         }
       })

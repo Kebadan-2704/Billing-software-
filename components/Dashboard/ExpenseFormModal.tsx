@@ -1,8 +1,8 @@
-'use client'
+﻿'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, IndianRupee, Tag, Calendar, FileText, Upload, CheckCircle2, AlertCircle, Loader2, Scan, Image as ImageIcon } from 'lucide-react'
+import { X, IndianRupee, Tag, Calendar, FileText, Upload, CheckCircle2, AlertCircle, Loader2, Scan, Image as ImageIcon, Pencil, Check } from 'lucide-react'
 import { Expense } from '@/lib/types'
 import { createWorker } from 'tesseract.js'
 import Image from 'next/image'
@@ -34,6 +34,8 @@ export default function ExpenseFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [receiptImage, setReceiptImage] = useState<string | null>(null)
   const [ocrProgress, setOcrProgress] = useState(0)
+  const [editingItemIdx, setEditingItemIdx] = useState<number | null>(null)
+  const [editingItemData, setEditingItemData] = useState<{ name: string; price: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -90,9 +92,8 @@ export default function ExpenseFormModal({
 
       console.log('--- OCR RAW TEXT ---', text)
       const ocrLines = text.split('\n').filter(line => line.trim().length > 0)
-      console.log('--- OCR LINES ---', ocrLines)
       
-      const detectedItems: string[] = []
+      const detectedItems: { name: string; price: number }[] = []
       let totalAmount = 0
       let pendingName = ''
       let isTableStarted = false
@@ -102,13 +103,10 @@ export default function ExpenseFormModal({
         const trimmedLine = line.trim()
         const upperLine = trimmedLine.toUpperCase()
 
-        console.log(`Line ${idx}: "${trimmedLine}" (Table: ${isTableStarted})`)
-
         // TRIGGER: Start of table
         if (!isTableStarted && (upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') || upperLine.includes('NAME'))) {
           if (upperLine.includes('RATE') || upperLine.includes('PRICE') || upperLine.includes('AMOUNT')) {
             isTableStarted = true
-            console.log(`  >>> TABLE STARTED <<<`)
             return
           }
         }
@@ -117,91 +115,62 @@ export default function ExpenseFormModal({
         if (isTableStarted && !isTableFinished && (upperLine.startsWith('TOTAL') || upperLine.includes('SUBTOTAL') || upperLine.startsWith('GRAND'))) {
           isTableStarted = false
           isTableFinished = true
-          console.log(`  >>> TABLE FINISHED <<<`)
         }
 
-        // Aggressive Garbage/Metadata Filter
-        const isGarbage = upperLine.includes('DATE') || 
-                          upperLine.includes('SHIP') ||
-                          upperLine.includes('VENDOR') ||
-                          upperLine.includes('GSTIN') ||
-                          upperLine.includes('CODE') ||
-                          upperLine.includes('ADDRESS') ||
-                          upperLine.includes('HSN') ||
-                          upperLine.includes('HSM') ||
-                          upperLine.includes('EMAIL') ||
-                          upperLine.includes('PHONE') ||
-                          trimmedLine.length < 3
+        // Noise filter
+        const isGarbage = upperLine.includes('DATE') || upperLine.includes('SHIP') || upperLine.includes('VENDOR') ||
+                          upperLine.includes('GSTIN') || upperLine.includes('CODE') || upperLine.includes('ADDRESS') ||
+                          upperLine.includes('HSN') || upperLine.includes('HSM') || upperLine.includes('EMAIL') ||
+                          upperLine.includes('PHONE') || trimmedLine.length < 3
+        if (isGarbage) return
 
-        if (isGarbage) {
-          console.log(`  -> Skipped (Garbage/Metadata)`)
-          return
-        }
-
-        // 1. Look for explicit price (with decimal dot)
-        const explicitPriceMatch = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)[\.,]\d{2})/g)
-        
-        // 2. Look for implicit price (large integers that might be missing a dot, e.g. 10000 for 100.00)
-        const implicitPriceMatch = trimmedLine.match(/(\d{4,10})$/g) // End of line, 4+ digits
-        
-        // 3. Summary match (lenient)
+        // Summary detection
         const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
                           /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL)/i.test(upperLine)
 
         if (isSummary) {
-          const summaryMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2})?)/g)
+          const summaryMatches = trimmedLine.match(/(\d[\d,\s]*(?:[\.,]\d{2})?)/g)
           if (summaryMatches) {
-            const price = parseFloat(summaryMatches[summaryMatches.length - 1].replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
-            if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT)/i.test(upperLine)) {
-              totalAmount = Math.max(totalAmount, price)
-              console.log(`  -> Summary Confirmed: ${price}`)
-            }
+            const price = parseFloat(summaryMatches[summaryMatches.length - 1].replace(/,/g, '').replace(/\s/g, ''))
+            if (/(TOTAL|AMOUNT)/i.test(upperLine)) totalAmount = Math.max(totalAmount, price)
           }
           return
         }
 
         if (isTableStarted) {
-          let price = 0
-          let anchor = ''
+          // v11: Name is strictly the leading alphabetic text before any digit sequence
+          // e.g. "1 cleanic 10000 1000 000..." â†’ name="cleanic"
+          const nameMatch = trimmedLine.match(/^[\d\s]*([a-zA-Z][a-zA-Z\s]{1,30?}?)(?=\s{2,}|\s\d|\d{2,}|$)/)
+          const rawName = nameMatch ? nameMatch[1].trim() : ''
+          
+          // Price: look for the LAST number with explicit decimal on the line (the 'Amount' column)
+          const explicitPrices = trimmedLine.match(/(\d{1,3}(?:[,\d{3}])*\.\d{2})/g)
+          const implicitTrailing = trimmedLine.match(/(\d{4,10})(?:\s*$)/g)
 
-          if (explicitPriceMatch) {
-            anchor = explicitPriceMatch[explicitPriceMatch.length - 1]
-            price = parseFloat(anchor.replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
-            console.log(`  -> Explicit Price: ${price}`)
-          } else if (implicitPriceMatch) {
-            anchor = implicitPriceMatch[0]
-            const raw = parseInt(anchor)
-            price = raw / 100 // Recover decimals
-            console.log(`  -> Implicit Price Recovered: ${price} (from ${anchor})`)
+          let price = 0
+          if (explicitPrices) {
+            price = parseFloat(explicitPrices[explicitPrices.length - 1].replace(/,/g, ''))
+          } else if (implicitTrailing) {
+            price = parseInt(implicitTrailing[0]) / 100
           }
 
-          if (price > 0 && anchor) {
-            const firstAnchorIdx = trimmedLine.indexOf(anchor)
-            let name = trimmedLine.substring(0, firstAnchorIdx).replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s].*$/g, '').trim()
-            
-            if (name.length < 3 && pendingName) {
-              name = pendingName
-              pendingName = ''
-            }
-
-            if (name.length >= 3 && !/^\d+$/.test(name)) {
-              detectedItems.push(`${name.toUpperCase()} - ₹${price.toLocaleString('en-IN')}`)
-              console.log(`  -> Item Added: ${name}`)
-              pendingName = ''
-            }
-          } else if (trimmedLine.length > 3 && !/^\d+$/.test(trimmedLine)) {
-            // Buffer name component
-            pendingName = trimmedLine.replace(/^[\d\s\.\|/-]+/, '').trim()
-            console.log(`  -> Name Buffered: ${pendingName}`)
+          if (rawName.length >= 2 && price > 0) {
+            detectedItems.push({ name: rawName.toUpperCase(), price })
+            pendingName = ''
+          } else if (rawName.length >= 2) {
+            pendingName = rawName.toUpperCase()
+          } else if (price > 0 && pendingName) {
+            detectedItems.push({ name: pendingName, price })
+            pendingName = ''
           }
         }
       })
 
       const finalResult = {
-        description: (detectedItems[0]?.split(' - ')[0] || 'Extracted Expense').toUpperCase(),
-        amount: totalAmount || (detectedItems.length > 0 ? parseFloat(detectedItems[0].split('₹')[1].replace(/,/g, '')) : 0),
+        description: detectedItems.length > 0 ? detectedItems[0].name : 'Extracted Expense',
+        amount: totalAmount || detectedItems.reduce((sum, it) => sum + it.price, 0),
         category: 'General',
-        items: detectedItems.length > 0 ? detectedItems : ['No items detected']
+        items: detectedItems
       }
 
       setExtractionResult(finalResult)
@@ -360,7 +329,7 @@ export default function ExpenseFormModal({
                         <IndianRupee className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-hover:text-rose-500 transition-colors" size={20} />
                         <input
                           type="number"
-                          placeholder="Amount (₹)"
+                          placeholder="Amount (â‚¹)"
                           value={formData.amount || ''}
                           onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
                           className="w-full pl-16 pr-8 py-5 bg-slate-950/40 border border-white/10 rounded-[24px] text-rose-500 font-mono font-black outline-none focus:border-rose-500/50 transition-all text-2xl tracking-tighter placeholder:text-slate-700 placeholder:font-bold shadow-inner"
@@ -433,23 +402,68 @@ export default function ExpenseFormModal({
                         </div>
                         <div className="md:text-right shrink-0">
                           <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em] block mb-3">Asset Value</span>
-                          <p className="text-4xl font-black text-rose-500 tracking-tighter leading-none">₹{extractionResult.amount.toLocaleString('en-IN')}</p>
+                          <p className="text-4xl font-black text-rose-500 tracking-tighter leading-none">â‚¹{extractionResult.amount.toLocaleString('en-IN')}</p>
                         </div>
                       </div>
 
-                      <div className="pt-8 border-t border-white/5">
-                         <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em] block mb-6">Component Breakdown</span>
-                         <div className="space-y-3">
-                           {extractionResult.items?.map((item: string, i: number) => (
-                             <div key={i} className="flex items-center gap-4 text-[10px] text-slate-400 font-black uppercase tracking-wider bg-white/5 p-5 rounded-2xl border border-white/5 hover:border-rose-500/20 transition-all group">
-                               <div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse group-hover:scale-125 transition-transform" />
-                               <span className="flex-1">{item}</span>
-                               <span className="text-slate-600 italic">VERIFIED</span>
-                             </div>
-                           ))}
-                         </div>
-                      </div>
-                    </div>
+                       <div className="pt-8 border-t border-white/5">
+                          <span className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em] block mb-6">Component Breakdown</span>
+                          <div className="space-y-3">
+                            {(!extractionResult.items || extractionResult.items.length === 0) ? (
+                              <div className="flex items-center gap-4 text-[10px] text-slate-400 font-black uppercase tracking-wider bg-white/5 p-5 rounded-2xl border border-white/5">
+                                <div className="w-2 h-2 bg-slate-600 rounded-full" />
+                                <span className="flex-1">No Items Detected</span>
+                              </div>
+                            ) : extractionResult.items.map((item: { name: string; price: number }, i: number) => (
+                              <div key={i} className="flex items-center gap-3 text-[10px] text-slate-400 font-black uppercase tracking-wider bg-white/5 p-4 rounded-2xl border border-white/5 hover:border-rose-500/20 transition-all group">
+                                <div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse group-hover:scale-125 transition-transform shrink-0" />
+                                {editingItemIdx === i ? (
+                                  <>
+                                    <input
+                                      value={editingItemData?.name || ''}
+                                      onChange={e => setEditingItemData(d => ({ name: e.target.value.toUpperCase(), price: d?.price || 0 }))}
+                                      className="flex-1 min-w-0 bg-slate-800 border border-rose-500/40 rounded-lg px-3 py-1 text-white font-black uppercase text-[10px] outline-none"
+                                      autoFocus
+                                    />
+                                    <input
+                                      type="number"
+                                      value={editingItemData?.price || 0}
+                                      onChange={e => setEditingItemData(d => ({ name: d?.name || '', price: parseFloat(e.target.value) || 0 }))}
+                                      className="w-24 bg-slate-800 border border-rose-500/40 rounded-lg px-3 py-1 text-rose-400 font-mono font-black text-[10px] outline-none"
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        if (!editingItemData) return
+                                        const updated = [...extractionResult.items]
+                                        updated[i] = editingItemData
+                                        const newTotal = updated.reduce((s: number, it: { price: number }) => s + it.price, 0)
+                                        setExtractionResult({ ...extractionResult, items: updated, amount: newTotal })
+                                        setFormData((f: any) => ({ ...f, amount: newTotal }))
+                                        setEditingItemIdx(null)
+                                        setEditingItemData(null)
+                                      }}
+                                      className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400 hover:bg-emerald-500/30 transition shrink-0"
+                                    >
+                                      <Check size={12} />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="flex-1 truncate">{item.name} — ₹{item.price.toLocaleString('en-IN')}</span>
+                                    <span className="text-slate-600 italic mr-2 shrink-0">VERIFIED</span>
+                                    <button
+                                      onClick={() => { setEditingItemIdx(i); setEditingItemData({ name: item.name, price: item.price }) }}
+                                      className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition opacity-0 group-hover:opacity-100 shrink-0"
+                                    >
+                                      <Pencil size={11} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                       </div>
+                     </div>
 
                     <div className="flex items-center gap-4 p-5 bg-rose-500/[0.03] rounded-2xl border border-rose-500/10 relative z-10">
                        <Tag size={18} className="text-rose-500" />
