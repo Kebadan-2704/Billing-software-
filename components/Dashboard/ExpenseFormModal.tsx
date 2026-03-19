@@ -88,17 +88,18 @@ export default function ExpenseFormModal({
       const { data: { text } } = await worker.recognize(receiptImage)
       await worker.terminate()
 
-      console.log("Expense OCR Extracted Text:", text)
-
-      const lines = text.split('\n').filter(line => line.trim().length > 0)
+      console.log('--- OCR RAW TEXT ---', text)
+      const ocrLines = text.split('\n').filter(line => line.trim().length > 0)
+      console.log('--- OCR LINES ---', ocrLines)
+      
       const detectedItems: string[] = []
       let totalAmount = 0
-
-
       let pendingName = ''
-      lines.forEach((line) => {
+      ocrLines.forEach((line, idx) => {
         const trimmedLine = line.trim()
         const upperLine = trimmedLine.toUpperCase()
+
+        console.log(`Line ${idx}: "${trimmedLine}"`)
 
         // Skip metadata lines aggressively
         if (
@@ -109,42 +110,53 @@ export default function ExpenseFormModal({
           upperLine.includes('CODE') ||
           upperLine.includes('ADDRESS') ||
           trimmedLine.length < 3
-        ) return
+        ) {
+          console.log(`  -> Skipped (Metadata)`)
+          return
+        }
 
         // Skip lines that look like a standalone date
-        if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) return
+        if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) {
+          console.log(`  -> Skipped (Date)`)
+          return
+        }
 
         // Lenient price pattern: look for numbers with optional decimals and commas
-        // We focus on numbers that appear towards the end of a line or after a name
         const priceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2}))/g)
         
-        // Summary keywords regex
-        const isSummary = /(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|ROUND|GST|TAX|VAT|AMOUNT|VALUE)/i.test(upperLine)
+        // Summary keywords regex - more selective
+        const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
+                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL)/i.test(upperLine)
 
         if (priceMatches && priceMatches.length > 0) {
           const mainPriceStr = priceMatches[priceMatches.length - 1]
           const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(' ', ''))
+          console.log(`  -> Found Price: ${price} (from "${mainPriceStr}")`)
           
           if (isSummary) {
-            // Update total amount if it seems like a final value
+            console.log(`  -> Summary Line Detected`)
             if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT)/i.test(upperLine)) {
               totalAmount = Math.max(totalAmount, price)
+              console.log(`  -> Updated totalAmount to ${totalAmount}`)
             }
           } else {
             // Potential line item
-            // Try to extract name: everything before the first price
             let name = trimmedLine.split(priceMatches[0])[0].replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
+            console.log(`  -> Potential Item Name: "${name}"`)
             
             if (name.length < 3 && pendingName) {
               name = pendingName
               pendingName = ''
+              console.log(`  -> Using pendingName: "${name}"`)
             }
 
             if (name.length >= 3 && !/^\d+$/.test(name)) {
               detectedItems.push(`${name.toUpperCase()} - ₹${price.toLocaleString('en-IN')}`)
+              console.log(`  -> Added to Items`)
               pendingName = ''
             } else if (pendingName) {
               detectedItems.push(`${pendingName.toUpperCase()} - ₹${price.toLocaleString('en-IN')}`)
+              console.log(`  -> Added to Items (from pendingName)`)
               pendingName = ''
             }
           }
@@ -153,6 +165,7 @@ export default function ExpenseFormModal({
           const potentialName = trimmedLine.replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
           if (potentialName.length >= 3 && !/^\d+$/.test(potentialName)) {
             pendingName = potentialName
+            console.log(`  -> Buffered as pendingName: "${pendingName}"`)
           }
         }
       })
