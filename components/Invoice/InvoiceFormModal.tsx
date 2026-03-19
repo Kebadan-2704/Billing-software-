@@ -158,7 +158,6 @@ export default function InvoiceFormModal({
       
       console.log("OCR Extracted Text:", text)
       
-      const lines = text.split('\n').filter(line => line.trim().length > 0)
       const detectedItems: InvoiceItem[] = []
       let detectedTotal = 0
       
