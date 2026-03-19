@@ -95,75 +95,93 @@ export default function ExpenseFormModal({
       const detectedItems: string[] = []
       let totalAmount = 0
       let pendingName = ''
+      let isTableStarted = false
+      let isTableFinished = false
+
       ocrLines.forEach((line, idx) => {
         const trimmedLine = line.trim()
         const upperLine = trimmedLine.toUpperCase()
 
-        console.log(`Line ${idx}: "${trimmedLine}"`)
+        console.log(`Line ${idx}: "${trimmedLine}" (TableStarted: ${isTableStarted})`)
 
-        // Skip metadata lines aggressively - include address and footer noise
-        if (
-          upperLine.includes('DATE') || 
-          upperLine.includes('SHIPPING') ||
-          upperLine.includes('VENDOR') ||
-          upperLine.includes('GSTIN') ||
-          upperLine.includes('CODE') ||
-          upperLine.includes('ADDRESS') ||
-          upperLine.includes('EMAIL') ||
-          upperLine.includes('PHONE') ||
-          trimmedLine.length < 3
-        ) {
+        // TRIGGER: Start of table
+        if (!isTableStarted && (upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') || upperLine.includes('DESCRIPTION') || upperLine.includes('NAME'))) {
+          if (upperLine.includes('RATE') || upperLine.includes('PRICE') || upperLine.includes('AMOUNT')) {
+            isTableStarted = true
+            console.log(`  >>> TABLE STARTED <<<`)
+            return
+          }
+        }
+
+        // TRIGGER: End of table
+        if (isTableStarted && !isTableFinished && (upperLine.startsWith('TOTAL') || upperLine.includes('SUBTOTAL') || upperLine.startsWith('GRAND'))) {
+          // We don't return here because the total line itself might have the final amount
+          isTableStarted = false
+          isTableFinished = true
+          console.log(`  >>> TABLE FINISHED <<<`)
+        }
+
+        // Skip metadata noise if we haven't reached the table yet or passed it
+        const isMetadata = upperLine.includes('DATE') || 
+                           upperLine.includes('SHIPPING') ||
+                           upperLine.includes('VENDOR') ||
+                           upperLine.includes('GSTIN') ||
+                           upperLine.includes('CODE') ||
+                           upperLine.includes('ADDRESS') ||
+                           upperLine.includes('EMAIL') ||
+                           upperLine.includes('PHONE') ||
+                           upperLine.includes('HSN')
+
+        if (isMetadata) {
           console.log(`  -> Skipped (Metadata/Noise)`)
           return
         }
 
-        // Lenient price pattern: decimals are now OPTIONAL (?, and handle varied separators)
-        const priceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2})?)/g)
+        // Price regex: Require decimals for items to avoid capturing line numbers (1, 2, 3)
+        // For total lines, we'll allow optional decimals if triggered by summary keywords
+        const priceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2}))/g)
+        const summaryPriceMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2})?)/g)
         
-        // Refined summary detection: Only if it starts with a keyword OR contains multiple summary signals
         const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
                           /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL)/i.test(upperLine)
 
-        if (priceMatches && priceMatches.length > 0) {
-          // Find the most likely price (usually the last one on the line)
+        if (isSummary && summaryPriceMatches) {
+          const mainPriceStr = summaryPriceMatches[summaryPriceMatches.length - 1]
+          const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
+          if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT)/i.test(upperLine)) {
+            totalAmount = Math.max(totalAmount, price)
+            console.log(`  -> Summary Found: ${price}`)
+          }
+          return
+        }
+
+        if (isTableStarted && priceMatches && priceMatches.length > 0) {
           const mainPriceStr = priceMatches[priceMatches.length - 1]
           const price = parseFloat(mainPriceStr.replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
-          console.log(`  -> Found Price: ${price} (from "${mainPriceStr}")`)
+          console.log(`  -> Found Item Price: ${price}`)
           
-          if (isSummary) {
-            console.log(`  -> Summary Line Detected`)
-            if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT)/i.test(upperLine)) {
-              totalAmount = Math.max(totalAmount, price)
-              console.log(`  -> Updated totalAmount to ${totalAmount}`)
-            }
-          } else {
-            // Item row: Name is everything before the FIRST detected price
-            const firstPriceStr = priceMatches[0]
-            const firstPriceIdx = trimmedLine.indexOf(firstPriceStr)
-            let name = trimmedLine.substring(0, firstPriceIdx).replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s]/gi, ' ').trim()
-            
-            console.log(`  -> Extracted Name: "${name}"`)
+          // Item row: Name is everything before the FIRST detected price
+          const firstPriceStr = priceMatches[0]
+          const firstPriceIdx = trimmedLine.indexOf(firstPriceStr)
+          let name = trimmedLine.substring(0, firstPriceIdx).replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s].*$/g, '').trim()
+          
+          console.log(`  -> Extracted Name: "${name}"`)
 
-            if (name.length < 3 && pendingName) {
-              name = pendingName
-              pendingName = ''
-              console.log(`  -> Using pendingName: "${name}"`)
-            }
-
-            if (name.length >= 3 && !/^\d+$/.test(name)) {
-              detectedItems.push(`${name.toUpperCase()} - ₹${price.toLocaleString('en-IN')}`)
-              console.log(`  -> Added to Items`)
-              pendingName = ''
-            } else if (pendingName) {
-              detectedItems.push(`${pendingName.toUpperCase()} - ₹${price.toLocaleString('en-IN')}`)
-              console.log(`  -> Added to Items (from pendingName)`)
-              pendingName = ''
-            }
+          if (name.length < 3 && pendingName) {
+            name = pendingName
+            pendingName = ''
+            console.log(`  -> Using pendingName: "${name}"`)
           }
-        } else if (!isSummary && trimmedLine.length > 3) {
-          // No price, but looks like a name (long text, not all numbers)
-          const potentialName = trimmedLine.replace(/^[\d\s\.\|/-]+/, '').replace(/[^\w\s]/gi, ' ').trim()
-          if (potentialName.length >= 3 && !/^\d+$/.test(potentialName)) {
+
+          if (name.length >= 3 && !/^\d+$/.test(name)) {
+            detectedItems.push(`${name.toUpperCase()} - ₹${price.toLocaleString('en-IN')}`)
+            console.log(`  -> Added to Items`)
+            pendingName = ''
+          }
+        } else if (isTableStarted && !isSummary && trimmedLine.length > 3) {
+          // No price, buffer as potential name component
+          const potentialName = trimmedLine.replace(/^[\d\s\.\|/-]+/, '').trim()
+          if (potentialName.length >= 3 && !/^\d+$/.test(potentialName) && !upperLine.includes('AMOUNT')) {
             pendingName = potentialName
             console.log(`  -> Buffered as pendingName: "${pendingName}"`)
           }
