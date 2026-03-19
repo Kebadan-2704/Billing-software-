@@ -94,17 +94,12 @@ export default function ExpenseFormModal({
       const detectedItems: string[] = []
       let totalAmount = 0
 
-      // Keywords that indicate summary lines or noise that shouldn't be line items
-      const summaryKeywords = [
-        'TOTAL', 'SUBTOTAL', 'SUB-TOTAL', 'SUB TOTAL', 'GST', 'TAX', 'CGST', 'SGST', 'IGST', 
-        'VAT', 'NET', 'BALANCE', 'GRAND', 'ROUNDED', 'ROUND', 'SHIPPING', 'DATE', 'VENDOR', 
-        'GSTIN', 'CODE', 'PO NO', 'INVOICE NO', 'BILL TO', 'SHIP TO', 'TERMS', 'DUE'
-      ]
 
+      let pendingName = ''
       lines.forEach((line) => {
         const upperLine = line.trim().toUpperCase()
 
-        // Skip table headers, metadata and very short lines
+        // Skip table headers and metadata early
         if (
           upperLine.includes('PRODUCT') || 
           upperLine.includes('SERVICE') || 
@@ -113,40 +108,48 @@ export default function ExpenseFormModal({
           upperLine.includes('VENDOR') ||
           upperLine.includes('GSTIN') ||
           upperLine.includes('PO NO') ||
-          line.length < 5
-        ) return
+          line.length < 3
+        ) {
+          return
+        }
 
         // Skip lines that look like a date
         if (/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|20\d{2})\b/i.test(upperLine)) return
 
         // Robust price pattern: handles 1,234.56, 123.45, etc.
-        // We look for a number with a decimal and 2 digits at the end of a segment
         const priceMatch = line.match(/((\d{1,3}(?:,\d{3})*|\d+)[\.,]\d{2})/g)
         
+        // Comprehensive summary keywords with common OCR variations
+        const isSummaryLine = /(TOTAL|SUBTOTAL|SUB-TOTAL|SUB TOTAL|TOTA|TOTL|NET|BALANCE|GRAND|ROUNDED|ROUND|GST|TAX|VAT)/i.test(upperLine)
+
         if (priceMatch) {
           const priceStr = priceMatch[priceMatch.length - 1]
-          // Convert "11,200.00" to 11200.00
           const price = parseFloat(priceStr.replace(/,/g, '').replace(' ', ''))
           
-          // Fuzzy summary keywords to handle OCR errors like "TOTA" instead of "TOTAL"
-          const isSummaryLine = summaryKeywords.some(kw => upperLine.includes(kw)) || 
-                                upperLine.includes('TOTA') || 
-                                upperLine.includes('TOTL') ||
-                                upperLine.includes('SUB')
-
           if (isSummaryLine) {
-            if (upperLine.includes('TOTA') || upperLine.includes('TOTL') || upperLine.includes('NET') || upperLine.includes('BALANCE') || upperLine.includes('AMOUNT')) {
+            if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT|VALUE)/i.test(upperLine)) {
               totalAmount = Math.max(totalAmount, price)
             }
           } else {
-            // Likely a line item
-            // Clean up description: remove the price and leading numbers/bullets
+            // Line item detection
             let description = line.replace(priceStr, '').replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
             
-            // If the name is too short or just numbers, skip it
-            if (description.length < 3 || /^\d+$/.test(description)) return
-
-            detectedItems.push(`${description} - ₹${price.toLocaleString('en-IN')}`)
+            // If the line had text and a price, it's a solid item
+            if (description.length >= 3 && !/^\d+$/.test(description)) {
+              detectedItems.push(`${description} - ₹${price.toLocaleString('en-IN')}`)
+              pendingName = '' // Reset pending name
+            } 
+            // If the line was mostly a price but we had a pending name from a previous line
+            else if (pendingName) {
+              detectedItems.push(`${pendingName} - ₹${price.toLocaleString('en-IN')}`)
+              pendingName = ''
+            }
+          }
+        } else if (!isSummaryLine && upperLine.length > 3) {
+          // If no price found, this might be a product name split from its price
+          const potentialName = line.replace(/^[\d\s\.\|]+/, '').replace(/[^\w\s]/gi, ' ').trim()
+          if (potentialName.length >= 3 && !/^\d+$/.test(potentialName)) {
+            pendingName = potentialName
           }
         }
       })
