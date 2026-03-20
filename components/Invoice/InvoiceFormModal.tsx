@@ -141,6 +141,33 @@ export default function InvoiceFormModal({
     }
   }
 
+  
+  // Preprocess image on canvas for better OCR accuracy
+  const preprocessImage = (imageSrc: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const scale = img.width < 1000 ? 1500 / img.width : 1
+        canvas.width = img.width * scale
+        canvas.height = img.height * scale
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const data = imageData.data
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]
+          const contrast = Math.min(255, Math.max(0, (gray - 128) * 1.8 + 128))
+          data[i] = data[i+1] = data[i+2] = contrast
+        }
+        ctx.putImageData(imageData, 0, 0)
+        resolve(canvas.toDataURL('image/png'))
+      }
+      img.src = imageSrc
+    })
+  }
+
   const performOcr = async () => {
     if (!receiptImage) return
     setIsScanning(true)
@@ -198,7 +225,8 @@ export default function InvoiceFormModal({
         }
       })
       
-      const { data: { text } } = await worker.recognize(receiptImage)
+      const processedImage = await preprocessImage(receiptImage)
+      const { data: { text } } = await worker.recognize(processedImage)
       await worker.terminate()
       
       console.log("OCR Extracted Text:", text)
@@ -225,7 +253,21 @@ export default function InvoiceFormModal({
         'DELIVER', 'DELIVERY', 'PLEASE', 'BUILDING',
         'DISPATCH', 'KINDLY', 'REGARDS', 'DEAR', 'SIR', 'MADAM',
         'RECEIVED', 'CERTIFIED', 'TRANSPORT', 'FREIGHT', 'VEHICLE',
-        'CONSIGNEE', 'CONSIGNOR', 'PARTY', 'FIRM', 'COMPANY'
+        'CONSIGNEE', 'CONSIGNOR', 'PARTY', 'FIRM', 'COMPANY',
+        'MUMBAI', 'MAHARASHTRA', 'DELHI', 'CHENNAI', 'KOLKATA', 'BANGALORE',
+        'HYDERABAD', 'PUNE', 'AHMEDABAD', 'JAIPUR', 'LUCKNOW', 'KANPUR',
+        'KERALA', 'KARNATAKA', 'TAMIL', 'ANDHRA', 'TELANGANA', 'RAJASTHAN',
+        'GUJARAT', 'PUNJAB', 'HARYANA', 'UTTAR', 'MADHYA', 'PRADESH',
+        'PLOT', 'ROAD', 'ESTATE', 'STREET', 'NAGAR', 'SECTOR', 'FLOOR',
+        'MANUFACTURING', 'PRECISION', 'COMPONENT', 'ENGINEERING',
+        'CHALLAN', 'INVOICE NO', 'INVOICE DATE', 'BILL NO', 'E-WAY',
+        'ROADLINES', 'SILVER', 'TRANSPORT ID', 'CUSTOMER DETAIL',
+        'RECIPIENT', 'SURATE', 'KOCHI', 'SURAT', 'ICICI',
+        'NOS', 'PIECES', 'PCS', 'TAXABLE VALUE', 'NAME OF',
+        'M/S', 'WEB', 'INFO', 'WAGHLE', 'BUSINESS PARK', 'SUMEL',
+        'FOUR THOUSAND', 'HUNDRED', 'NINETY', 'RUPEES ONLY', 'IN WORDS',
+        'GOODS ONCE', 'RESPONSIBILITY', 'CEASES', 'PREMISES',
+        'COMPUTER GENERATED', 'SIGNATURE', 'SHOPPING', 'CONDITION'
       ]
 
       const summaryKeywords = [
