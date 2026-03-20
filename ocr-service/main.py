@@ -5,7 +5,7 @@ import os
 import logging
 from typing import Optional
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Invoice OCR Service", version="1.0.0")
+app = FastAPI(title="Invoice OCR Service", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,7 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Lazy-load EasyOCR reader to avoid slow startup
+# Lazy-load EasyOCR reader
 _reader = None
 
 def get_reader():
@@ -53,139 +53,114 @@ class OCRResponse(BaseModel):
 
 
 # ──────────────────────────────────────────────────────────────
-# Invoice-specific parsing logic
+# v2: Smart invoice parsing — no header detection needed
 # ──────────────────────────────────────────────────────────────
 
-TABLE_START_KEYWORDS = {
-    "PRODUCT", "SERVICE", "DESCRIPTION", "ITEM", "PARTICULARS"
+NOISE_KEYWORDS = {
+    'GSTIN', 'EMAIL', 'PAN', 'PHONE', 'ADDRESS', 'STATE CODE', 'INVOICE',
+    'TAX', 'CGST', 'SGST', 'IGST', 'HSN', 'SAC', 'DATE', 'BILL NO',
+    'CUSTOMER', 'BUYER', 'SELLER', 'SHIP TO', 'PLACE OF', 'SUPPLY',
+    'BANK', 'IFSC', 'A/C', 'ACCOUNT', 'BRANCH', 'UPI', 'PAYMENT',
+    'TERMS', 'NOTE', 'AUTHORIZED', 'SIGNATORY', 'SUBJECT TO',
+    'DECLARATION', 'REGISTERED', 'JURISDICTION', 'THANK',
+    'ORIGINAL', 'DUPLICATE', 'COPY', 'WWW', 'HTTP',
+    'SL NO', 'SR NO', 'S.NO', 'PARTICULARS', 'QTY', 'RATE',
+    'DESCRIPTION', 'PRODUCT', 'SERVICE', 'UNIT PRICE',
+    'DELIVER', 'DELIVERY', 'PLEASE', 'BUILDING',
+    'DISPATCH', 'KINDLY', 'REGARDS', 'DEAR', 'SIR', 'MADAM',
+    'RECEIVED', 'CERTIFIED', 'TRANSPORT', 'FREIGHT', 'VEHICLE',
+    'CONSIGNEE', 'CONSIGNOR', 'PARTY', 'FIRM', 'COMPANY',
+    'E. & O.E', 'MOBILE', 'FAX', 'TEL', 'RUPEES', 'IN WORDS',
 }
-TABLE_SECOND_KEYWORDS = {
-    "RATE", "PRICE", "AMOUNT", "QTY", "VALUE", "TAXABLE", "TOTAL"
-}
-TABLE_END_KEYWORDS = {
-    "TOTAL", "SUBTOTAL", "GRAND TOTAL", "AMOUNT IN WORDS",
-    "AMOUNT PAYABLE", "NET PAYABLE"
-}
+
 SUMMARY_KEYWORDS = {
-    "TOTAL", "SUBTOTAL", "GRAND TOTAL", "GROSS TOTAL",
-    "AMOUNT PAYABLE", "NET PAYABLE", "TAXABLE VALUE"
-}
-GARBAGE_KEYWORDS = {
-    "GSTIN", "EMAIL", "PAN NO", "PHONE", "ADDRESS", "STATE CODE",
-    "AUTHORIZED", "SIGNATORY", "SEAL", "DECLARATION", "NOTE"
+    'TOTAL', 'SUBTOTAL', 'SUB TOTAL', 'GRAND', 'NET',
+    'BALANCE', 'AMOUNT PAYABLE', 'AMOUNT DUE', 'ROUND',
+    'GROSS', 'NET PAYABLE',
 }
 
 
-def parse_price(text: str) -> float:
-    """Extract numeric price from a string (e.g. '1,200.00' -> 1200.0)"""
-    cleaned = text.replace(",", "").strip()
-    try:
-        return float(cleaned)
-    except ValueError:
-        return 0.0
+def preprocess_image(image: Image.Image) -> Image.Image:
+    """Enhance the image for better OCR accuracy."""
+    # Convert to grayscale
+    img = image.convert('L')
+    # Increase contrast
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(2.0)
+    # Sharpen
+    img = img.filter(ImageFilter.SHARPEN)
+    # Scale up small images for better recognition
+    w, h = img.size
+    if w < 1000:
+        scale = 1500 / w
+        img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+    return img.convert('RGB')
 
 
-def extract_price_from_line(line: str) -> float:
-    """Find the last explicit price (with decimal) or trailing large integer."""
-    # Explicit decimal prices: 11,200.00 or 1200.00
-    explicit = re.findall(r"\d{1,3}(?:,\d{3})*\.\d{2}", line)
-    if explicit:
-        return parse_price(explicit[-1])
-
-    # Implicit price: trailing 4+ digit integer (divide by 100 to recover decimals)
-    implicit = re.findall(r"(\d{4,10})(?:\s*$)", line)
-    if implicit:
-        return int(implicit[-1]) / 100
-
-    return 0.0
-
-
-def extract_name_from_line(line: str) -> str:
-    """Grab leading alphabetic text strictly before numerics start."""
-    match = re.match(
-        r"^[\d\s]*([a-zA-Z][a-zA-Z\s]{1,40}?)(?=\s{2,}|\s\d|\d{2,}|$)",
-        line
-    )
-    if match:
-        return match.group(1).strip()
-    return ""
-
-
-def is_table_start(upper: str) -> bool:
-    has_first = any(k in upper for k in TABLE_START_KEYWORDS)
-    has_second = any(k in upper for k in TABLE_SECOND_KEYWORDS)
-    return has_first and has_second
-
-
-def is_table_end(upper: str) -> bool:
-    return any(upper.startswith(k) or upper == k for k in TABLE_END_KEYWORDS)
+def is_noise(upper: str) -> bool:
+    """Check if a line is noise/metadata (not an item or total)."""
+    if len(upper) < 3:
+        return True
+    return any(kw in upper for kw in NOISE_KEYWORDS)
 
 
 def is_summary(upper: str) -> bool:
-    return any(k in upper for k in SUMMARY_KEYWORDS)
+    """Check if a line is a total/summary line."""
+    return any(kw in upper for kw in SUMMARY_KEYWORDS)
 
 
-def is_garbage(upper: str, line_len: int) -> bool:
-    if line_len < 3:
-        return True
-    return any(k in upper for k in GARBAGE_KEYWORDS)
-
-
-def parse_invoice(lines: list[str]) -> tuple[list[dict], float]:
+def extract_items_and_total(lines: list[str]) -> tuple[list[dict], float]:
     """
-    Parse OCR lines into items and total.
-    Returns (items_list, total_amount)
+    v2: Simple scan — every line with text + number is a potential item.
+    No header/trigger detection needed.
     """
-    items: list[dict] = []
+    items = []
     total_amount = 0.0
-    pending_name = ""
-    table_started = False
-    table_finished = False
 
     for line in lines:
         trimmed = line.strip()
         upper = trimmed.upper()
 
-        # Table start trigger (before garbage filter)
-        if not table_started and is_table_start(upper):
-            table_started = True
-            logger.info("TABLE STARTED")
+        if is_noise(upper):
             continue
 
-        # Table end trigger (before garbage filter)
-        if table_started and not table_finished and is_table_end(upper):
-            table_started = False
-            table_finished = True
-            logger.info("TABLE FINISHED")
-
-        # Garbage/noise filter (runs AFTER triggers)
-        if is_garbage(upper, len(trimmed)):
-            continue
-
-        # Summary line → capture total
+        # Summary/Total lines → capture total
         if is_summary(upper):
-            price = extract_price_from_line(trimmed)
-            if price > 0 and re.search(r"(TOTAL|AMOUNT|PAYABLE)", upper):
-                total_amount = max(total_amount, price)
+            nums = re.findall(r'(\d[\d,]*\.?\d*)', trimmed)
+            if nums:
+                price = float(nums[-1].replace(',', ''))
+                if price > 0:
+                    total_amount = max(total_amount, price)
+                    logger.info(f"  TOTAL: {price}")
             continue
 
-        # Item row
-        if table_started:
-            raw_name = extract_name_from_line(trimmed)
-            price = extract_price_from_line(trimmed)
+        # Try to extract item: must have text AND a number
+        nums = re.findall(r'(\d[\d,]*\.?\d*)', trimmed)
+        if not nums:
+            continue
 
-            if raw_name and price > 0:
-                items.append({"name": raw_name.upper(), "price": price})
-                pending_name = ""
-                logger.info(f"  ITEM: {raw_name} -> {price}")
-            elif raw_name:
-                pending_name = raw_name.upper()
-            elif price > 0 and pending_name:
-                items.append({"name": pending_name, "price": price})
-                logger.info(f"  ITEM (pending): {pending_name} -> {price}")
-                pending_name = ""
+        # Name: strip leading index (1. or 1) or 1 ), then get text before first big number
+        name_part = re.sub(r'^\d{1,2}[\.\)\s]+', '', trimmed)
+        big_num = re.search(r'\d{3,}|\d+\.\d', name_part)
+        if big_num:
+            name_part = name_part[:big_num.start()]
+        name_part = re.sub(r'[^a-zA-Z\s]', '', name_part).strip()
 
-    # If we never found a summary total, sum up items
+        if len(name_part) < 2:
+            continue
+
+        # Price: prefer explicit decimals (xxx.xx), else use last number
+        explicit = re.findall(r'(\d[\d,]*\.\d{2})', trimmed)
+        if explicit:
+            price = float(explicit[-1].replace(',', ''))
+        else:
+            price = float(nums[-1].replace(',', ''))
+
+        if price > 0 and price < 10_000_000:
+            items.append({"name": name_part.upper(), "price": price})
+            logger.info(f"  ITEM: {name_part.upper()} -> {price}")
+
+    # If no summary total found, sum up items
     if total_amount == 0 and items:
         total_amount = sum(it["price"] for it in items)
 
@@ -198,12 +173,12 @@ def parse_invoice(lines: list[str]) -> tuple[list[dict], float]:
 
 @app.get("/")
 def health():
-    return {"status": "ok", "service": "Invoice OCR API"}
+    return {"status": "ok", "service": "Invoice OCR API v2.0"}
 
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "version": "2.0.0"}
 
 
 @app.post("/extract", response_model=OCRResponse)
@@ -212,18 +187,54 @@ async def extract_invoice(request: OCRRequest):
         # Decode base64 image
         img_data = base64.b64decode(request.image)
         image = Image.open(io.BytesIO(img_data)).convert("RGB")
-        img_array = np.array(image)
+
+        # Preprocess for better accuracy
+        processed = preprocess_image(image)
+        img_array = np.array(processed)
 
         reader = get_reader()
 
-        logger.info("Running EasyOCR on image...")
-        results = reader.readtext(img_array, detail=0, paragraph=False)
+        logger.info("Running EasyOCR on preprocessed image...")
+        # Use detail=1 to get bounding boxes + confidence
+        results = reader.readtext(img_array, detail=1, paragraph=False)
         logger.info(f"Got {len(results)} text blocks from EasyOCR")
 
-        raw_text = "\n".join(results)
-        logger.info(f"Raw OCR text:\n{raw_text}")
+        # Sort by vertical position (top-to-bottom) then horizontal (left-to-right)
+        results.sort(key=lambda r: (r[0][0][1], r[0][0][0]))
 
-        items, total = parse_invoice(results)
+        # Group nearby text blocks into logical lines based on Y-coordinate
+        lines = []
+        current_line = []
+        current_y = -1
+        y_threshold = 15  # pixels - blocks within this vertical range are same line
+
+        for bbox, text, conf in results:
+            y_center = (bbox[0][1] + bbox[2][1]) / 2
+            if current_y == -1:
+                current_y = y_center
+            
+            if abs(y_center - current_y) > y_threshold:
+                # Start a new line
+                if current_line:
+                    # Sort blocks within line by X position (left to right)
+                    current_line.sort(key=lambda b: b[1])
+                    line_text = " ".join(b[0] for b in current_line)
+                    lines.append(line_text)
+                current_line = [(text, bbox[0][0])]
+                current_y = y_center
+            else:
+                current_line.append((text, bbox[0][0]))
+
+        # Don't forget the last line
+        if current_line:
+            current_line.sort(key=lambda b: b[1])
+            line_text = " ".join(b[0] for b in current_line)
+            lines.append(line_text)
+
+        raw_text = "\n".join(lines)
+        logger.info(f"Reconstructed {len(lines)} lines:\n{raw_text}")
+
+        items, total = extract_items_and_total(lines)
 
         description = items[0]["name"] if items else "Extracted Expense"
 
