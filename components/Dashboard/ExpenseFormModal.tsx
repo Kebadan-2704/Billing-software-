@@ -148,7 +148,12 @@ export default function ExpenseFormModal({
         'E. & O.E', 'DECLARATION', 'REGISTERED', 'JURISDICTION',
         'ORIGINAL', 'DUPLICATE', 'COPY', 'THANK', 'WWW', 'HTTP',
         'SL NO', 'SR NO', 'S.NO', 'PARTICULARS', 'QTY', 'RATE',
-        'DESCRIPTION', 'PRODUCT', 'SERVICE', 'AMOUNT', 'UNIT'
+        'DESCRIPTION', 'PRODUCT', 'SERVICE', 'AMOUNT', 'UNIT',
+        'DELIVER', 'DELIVERY', 'PLEASE', 'BUILDING', 'BUIKLING',
+        'LONG', 'BATARAM', 'BECALI', 'BEHALF', 'DISPATCH',
+        'KINDLY', 'REGARDS', 'DEAR', 'SIR', 'MADAM', 'RECEIVED',
+        'CERTIFIED', 'TRANSPORT', 'FREIGHT', 'VEHICLE', 'TRUCK',
+        'CONSIGNEE', 'CONSIGNOR', 'PARTY', 'FIRM', 'COMPANY'
       ]
 
       const summaryKeywords = [
@@ -485,7 +490,7 @@ export default function ExpenseFormModal({
                                   </>
                                 ) : (
                                   <>
-                                    <span className="flex-1 truncate">{item.name} â€” â‚¹{item.price.toLocaleString('en-IN')}</span>
+                                    <span className="flex-1 truncate">{item.name} {String.fromCharCode(0x2013)} {String.fromCharCode(0x20B9)}{item.price.toLocaleString('en-IN')}</span>
                                     <span className="text-slate-600 italic mr-2 shrink-0">VERIFIED</span>
                                     <button
                                       onClick={() => { setEditingItemIdx(i); setEditingItemData({ name: item.name, price: item.price }) }}

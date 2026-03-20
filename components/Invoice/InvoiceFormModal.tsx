@@ -211,103 +211,78 @@ export default function InvoiceFormModal({
       const ocrLines = text.split('\n').filter(line => line.trim().length > 0)
       console.log('--- INVOICE OCR LINES ---', ocrLines)
       
-      let pendingName = ''
-      let isTableStarted = false
-      let isTableFinished = false
+      // Simple two-pass parsing - no header detection needed
+      const skipKeywords = [
+        'GSTIN', 'EMAIL', 'PAN', 'PHONE', 'ADDRESS', 'STATE CODE', 'INVOICE',
+        'TAX', 'CGST', 'SGST', 'IGST', 'HSN', 'SAC', 'DATE', 'BILL',
+        'CUSTOMER', 'BUYER', 'SELLER', 'SHIP', 'PLACE OF', 'SUPPLY',
+        'BANK', 'IFSC', 'A/C', 'ACCOUNT', 'BRANCH', 'UPI', 'PAYMENT',
+        'TERMS', 'NOTE', 'AUTHORIZED', 'SIGNATORY', 'SUBJECT TO',
+        'E. & O.E', 'DECLARATION', 'REGISTERED', 'JURISDICTION',
+        'ORIGINAL', 'DUPLICATE', 'COPY', 'THANK', 'WWW', 'HTTP',
+        'SL NO', 'SR NO', 'S.NO', 'PARTICULARS', 'QTY', 'RATE',
+        'DESCRIPTION', 'PRODUCT', 'SERVICE', 'AMOUNT', 'UNIT',
+        'DELIVER', 'DELIVERY', 'PLEASE', 'BUILDING',
+        'DISPATCH', 'KINDLY', 'REGARDS', 'DEAR', 'SIR', 'MADAM',
+        'RECEIVED', 'CERTIFIED', 'TRANSPORT', 'FREIGHT', 'VEHICLE',
+        'CONSIGNEE', 'CONSIGNOR', 'PARTY', 'FIRM', 'COMPANY'
+      ]
+
+      const summaryKeywords = [
+        'TOTAL', 'SUBTOTAL', 'SUB TOTAL', 'GRAND', 'NET', 'BALANCE',
+        'AMOUNT PAYABLE', 'AMOUNT DUE', 'NET PAYABLE', 'ROUND', 'GROSS'
+      ]
 
       ocrLines.forEach((line, index) => {
         const trimmedLine = line.trim()
         const upperLine = trimmedLine.toUpperCase()
-        
-        console.log(`Line ${index}: "${trimmedLine}" (Table: ${isTableStarted})`)
 
-        // TRIGGER: Start of table (must come BEFORE garbage filter)
-        if (!isTableStarted && (
-          upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') ||
-          upperLine.includes('DESCRIPTION') || upperLine.includes('ITEM')
-        )) {
-          if (
-            upperLine.includes('RATE') || upperLine.includes('PRICE') ||
-            upperLine.includes('AMOUNT') || upperLine.includes('QTY') ||
-            upperLine.includes('VALUE') || upperLine.includes('TAXABLE')
-          ) {
-            isTableStarted = true
-            return
-          }
-        }
+        if (trimmedLine.length < 3) return
+        if (skipKeywords.some(kw => upperLine.includes(kw))) return
 
-        // TRIGGER: End of table (must come BEFORE garbage filter)
-        if (isTableStarted && !isTableFinished && (
-          upperLine.startsWith('TOTAL') || upperLine.includes('SUBTOTAL') ||
-          upperLine.startsWith('GRAND') || upperLine.startsWith('AMOUNT IN WORDS')
-        )) {
-          isTableStarted = false
-          isTableFinished = true
-        }
-
-        // Noise filter (runs AFTER triggers so table headers are never discarded)
-        const isGarbage = (
-          upperLine.includes('GSTIN') || upperLine.includes('EMAIL') ||
-          upperLine.includes('PAN') || upperLine.includes('PHONE') ||
-          upperLine.includes('ADDRESS') || upperLine.includes('STATE CODE') ||
-          trimmedLine.length < 3
-        )
-        if (isGarbage) return
-
-        const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
-                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL|AMOUNT PAYABLE)/i.test(upperLine)
-
+        // Check if this is a summary/total line
+        const isSummary = summaryKeywords.some(kw => upperLine.includes(kw))
         if (isSummary) {
-          const summaryMatches = trimmedLine.match(/((\d{1,3}(?:[,\s]\d{3})*|\d+)(?:[\.,]\d{2})?)/g)
-          if (summaryMatches) {
-            const price = parseFloat(summaryMatches[summaryMatches.length - 1].replace(/,/g, '').replace(/\s/g, '').replace(',', '.'))
-            if (/(TOTAL|TOTA|TOTL|NET|BALANCE|AMOUNT)/i.test(upperLine)) {
-              detectedTotal = Math.max(detectedTotal, price)
-              console.log(`  -> Summary Confirmed: ${price}`)
-            }
+          const nums = trimmedLine.match(/(\d[\d,]*\.?\d*)/g)
+          if (nums) {
+            const price = parseFloat(nums[nums.length - 1].replace(/,/g, ''))
+            if (price > 0) detectedTotal = Math.max(detectedTotal, price)
           }
           return
         }
 
-        if (isTableStarted) {
-          // v11: Name is strictly the leading alphabetic text before any digit column
-          const nameMatch = trimmedLine.match(/^[\d\s]*([a-zA-Z][a-zA-Z\s]{1,30}?)(?=\s{2,}|\s\d|\d{2,}|$)/)
-          const rawName = nameMatch ? nameMatch[1].trim() : ''
+        // Try to extract item: line must have text AND a number
+        const nums = trimmedLine.match(/(\d[\d,]*\.?\d*)/g)
+        if (!nums || nums.length === 0) return
 
-          // Price: last explicit decimal number on the line (the 'Amount' column)
-          const explicitPrices = trimmedLine.match(/(\d{1,3}(?:,\d{3})*\.\d{2})/g)
-          const implicitTrailing = trimmedLine.match(/(\d{4,10})(?:\s*$)/g)
+        // Extract the name: strip leading index, get text before first big number
+        let namePart = trimmedLine.replace(/^\d{1,2}[\.\)\s]+/, '')
+        const firstBigNum = namePart.match(/\d{3,}|\d+\.\d/)
+        if (firstBigNum && firstBigNum.index !== undefined) {
+          namePart = namePart.substring(0, firstBigNum.index)
+        }
+        namePart = namePart.replace(/[^a-zA-Z\s]/g, '').trim()
 
-          let price = 0
-          if (explicitPrices) {
-            price = parseFloat(explicitPrices[explicitPrices.length - 1].replace(/,/g, ''))
-          } else if (implicitTrailing) {
-            price = parseInt(implicitTrailing[0]) / 100
-          }
+        if (namePart.length < 2) return
 
-          if (rawName.length >= 2 && price > 0) {
-            detectedItems.push({
-              id: Date.now().toString() + index,
-              description: rawName.toUpperCase(),
-              quantity: 1,
-              unitPrice: price,
-              amount: price,
-              taxable: true
-            })
-            pendingName = ''
-          } else if (rawName.length >= 2) {
-            pendingName = rawName.toUpperCase()
-          } else if (price > 0 && pendingName) {
-            detectedItems.push({
-              id: Date.now().toString() + index,
-              description: pendingName,
-              quantity: 1,
-              unitPrice: price,
-              amount: price,
-              taxable: true
-            })
-            pendingName = ''
-          }
+        // Price: prefer explicit decimals, else use last number
+        const explicitDecimals = trimmedLine.match(/(\d[\d,]*\.\d{2})/g)
+        let price = 0
+        if (explicitDecimals) {
+          price = parseFloat(explicitDecimals[explicitDecimals.length - 1].replace(/,/g, ''))
+        } else {
+          price = parseFloat(nums[nums.length - 1].replace(/,/g, ''))
+        }
+
+        if (price > 0 && price < 10000000) {
+          detectedItems.push({
+            id: Date.now().toString() + index,
+            description: namePart.toUpperCase(),
+            quantity: 1,
+            unitPrice: price,
+            amount: price,
+            taxable: true
+          })
         }
       })
 
