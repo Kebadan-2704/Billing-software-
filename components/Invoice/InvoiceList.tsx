@@ -126,7 +126,7 @@ export default function InvoiceList({
                   </div>
 
                   <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2 md:mr-16">
-                    <p className="text-xl sm:text-3xl font-black text-white tracking-tighter gold-text-gradient order-2 md:order-1">\u20B9{invoice.total.toLocaleString('en-IN')}</p>
+                    <p className="text-xl sm:text-3xl font-black text-white tracking-tighter gold-text-gradient order-2 md:order-1">{'\u20B9'}{invoice.total.toLocaleString('en-IN')}</p>
                     <p className="text-[7px] sm:text-[9px] font-black text-slate-700 uppercase tracking-[0.4em] sm:tracking-[0.6em] md:mt-2 order-1 md:order-2">Instrument Value</p>
                   </div>
 

@@ -698,12 +698,12 @@ export default function InvoiceFormModal({
                               />
                             ) : (
                               <span className="text-white font-bold font-mono text-sm sm:text-base">
-                                \u20B9{item.unitPrice.toLocaleString('en-IN')}
+                                {'\u20B9'}{item.unitPrice.toLocaleString('en-IN')}
                               </span>
                             )}
                           </td>
                           <td className="px-4 sm:px-6 py-4 text-right">
-                            <span className="text-white font-black font-mono tracking-tighter text-sm sm:text-base">\u20B9{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</span>
+                            <span className="text-white font-black font-mono tracking-tighter text-sm sm:text-base">{'\u20B9'}{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</span>
                           </td>
                           <td className="px-4 sm:px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -758,15 +758,15 @@ export default function InvoiceFormModal({
               <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-6 sm:gap-12 w-full lg:w-auto">
                 <div className="space-y-1 sm:space-y-2">
                   <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.5em]">Subtotal</p>
-                  <p className="text-xl sm:text-4xl font-black text-white italic tracking-tighter font-mono leading-none">\u20B9{calculateTotals().subtotal.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
+                  <p className="text-xl sm:text-4xl font-black text-white italic tracking-tighter font-mono leading-none">{'\u20B9'}{calculateTotals().subtotal.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
                 </div>
                 <div className="space-y-1 sm:space-y-2">
                   <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.5em]">Tax ({formData.taxRate}%)</p>
-                  <p className="text-xl sm:text-4xl font-black text-primary italic tracking-tighter font-mono leading-none flex items-center"><span className="text-slate-500 text-xs sm:text-2xl mr-1 sm:mr-2">+</span>\u20B9{calculateTotals().taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
+                  <p className="text-xl sm:text-4xl font-black text-primary italic tracking-tighter font-mono leading-none flex items-center"><span className="text-slate-500 text-xs sm:text-2xl mr-1 sm:mr-2">+</span>{'\u20B9'}{calculateTotals().taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
                 </div>
                 <div className="space-y-1 sm:space-y-2 col-span-2 md:col-span-1 border-t md:border-t-0 border-white/5 pt-2 md:pt-0">
                   <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.5em]">Total Yield</p>
-                  <p className="text-2xl sm:text-6xl font-black text-white tracking-tighter font-mono italic leading-none drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">\u20B9{calculateTotals().total.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
+                  <p className="text-2xl sm:text-6xl font-black text-white tracking-tighter font-mono italic leading-none drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">{'\u20B9'}{calculateTotals().total.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
                 </div>
               </div>
               
