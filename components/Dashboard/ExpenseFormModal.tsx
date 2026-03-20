@@ -137,86 +137,68 @@ export default function ExpenseFormModal({
       
       const detectedItems: { name: string; price: number }[] = []
       let totalAmount = 0
-      let pendingName = ''
-      let isTableStarted = false
-      let isTableFinished = false
 
-      ocrLines.forEach((line, _idx) => {
+      // Simple two-pass parsing - no header detection needed
+      const skipKeywords = [
+        'GSTIN', 'EMAIL', 'PAN', 'PHONE', 'ADDRESS', 'STATE CODE', 'INVOICE',
+        'TAX', 'CGST', 'SGST', 'IGST', 'HSN', 'SAC', 'DATE', 'BILL',
+        'CUSTOMER', 'BUYER', 'SELLER', 'SHIP', 'PLACE OF', 'SUPPLY',
+        'BANK', 'IFSC', 'A/C', 'ACCOUNT', 'BRANCH', 'UPI', 'PAYMENT',
+        'TERMS', 'NOTE', 'AUTHORIZED', 'SIGNATORY', 'SUBJECT TO',
+        'E. & O.E', 'DECLARATION', 'REGISTERED', 'JURISDICTION',
+        'ORIGINAL', 'DUPLICATE', 'COPY', 'THANK', 'WWW', 'HTTP',
+        'SL NO', 'SR NO', 'S.NO', 'PARTICULARS', 'QTY', 'RATE',
+        'DESCRIPTION', 'PRODUCT', 'SERVICE', 'AMOUNT', 'UNIT'
+      ]
+
+      const summaryKeywords = [
+        'TOTAL', 'SUBTOTAL', 'SUB TOTAL', 'GRAND', 'NET', 'BALANCE',
+        'AMOUNT PAYABLE', 'AMOUNT DUE', 'NET PAYABLE', 'ROUND', 'GROSS'
+      ]
+
+      ocrLines.forEach((line) => {
         const trimmedLine = line.trim()
         const upperLine = trimmedLine.toUpperCase()
 
-        // TRIGGER: Start of table (must come BEFORE garbage filter)
-        if (!isTableStarted && (
-          upperLine.includes('PRODUCT') || upperLine.includes('SERVICE') ||
-          upperLine.includes('DESCRIPTION') || upperLine.includes('ITEM')
-        )) {
-          if (
-            upperLine.includes('RATE') || upperLine.includes('PRICE') ||
-            upperLine.includes('AMOUNT') || upperLine.includes('QTY') ||
-            upperLine.includes('VALUE') || upperLine.includes('TAXABLE')
-          ) {
-            isTableStarted = true
-            return
-          }
-        }
+        if (trimmedLine.length < 3) return
+        if (skipKeywords.some(kw => upperLine.includes(kw))) return
 
-        // TRIGGER: End of table (must come BEFORE garbage filter)
-        if (isTableStarted && !isTableFinished && (
-          upperLine.startsWith('TOTAL') || upperLine.includes('SUBTOTAL') ||
-          upperLine.startsWith('GRAND') || upperLine.startsWith('AMOUNT IN WORDS')
-        )) {
-          isTableStarted = false
-          isTableFinished = true
-        }
-
-        // Noise filter (runs AFTER triggers so table headers are never discarded)
-        const isGarbage = (
-          upperLine.includes('GSTIN') || upperLine.includes('EMAIL') ||
-          upperLine.includes('PAN') || upperLine.includes('PHONE') ||
-          upperLine.includes('ADDRESS') || upperLine.includes('STATE CODE') ||
-          trimmedLine.length < 3
-        )
-        if (isGarbage) return
-
-        // Summary detection
-        const isSummary = /^(TOTAL|SUBTOTAL|TOTA|TOTL|NET|BALANCE|GRAND|GST|TAX|VAT)/i.test(upperLine) || 
-                          /(TOTAL AMOUNT|TOTAL VALUE|GRAND TOTAL|GROSS TOTAL|AMOUNT PAYABLE)/i.test(upperLine)
-
+        // Check if this is a summary/total line
+        const isSummary = summaryKeywords.some(kw => upperLine.includes(kw))
         if (isSummary) {
-          const summaryMatches = trimmedLine.match(/(\d[\d,\s]*(?:[\.,]\d{2})?)/g)
-          if (summaryMatches) {
-            const price = parseFloat(summaryMatches[summaryMatches.length - 1].replace(/,/g, '').replace(/\s/g, ''))
-            if (/(TOTAL|AMOUNT)/i.test(upperLine)) totalAmount = Math.max(totalAmount, price)
+          const nums = trimmedLine.match(/(\d[\d,]*\.?\d*)/g)
+          if (nums) {
+            const price = parseFloat(nums[nums.length - 1].replace(/,/g, ''))
+            if (price > 0) totalAmount = Math.max(totalAmount, price)
           }
           return
         }
 
-        if (isTableStarted) {
-          // v11: Name is strictly the leading alphabetic text before any digit sequence
-          // e.g. "1 cleanic 10000 1000 000..." Ã¢â€ â€™ name="cleanic"
-          const nameMatch = trimmedLine.match(/^[\d\s]*([a-zA-Z][a-zA-Z\s]{1,30?}?)(?=\s{2,}|\s\d|\d{2,}|$)/)
-          const rawName = nameMatch ? nameMatch[1].trim() : ''
-          
-          // Price: look for the LAST number with explicit decimal on the line (the 'Amount' column)
-          const explicitPrices = trimmedLine.match(/(\d{1,3}(?:[,\d{3}])*\.\d{2})/g)
-          const implicitTrailing = trimmedLine.match(/(\d{4,10})(?:\s*$)/g)
+        // Try to extract item: line must have text AND a number
+        const nums = trimmedLine.match(/(\d[\d,]*\.?\d*)/g)
+        if (!nums || nums.length === 0) return
 
-          let price = 0
-          if (explicitPrices) {
-            price = parseFloat(explicitPrices[explicitPrices.length - 1].replace(/,/g, ''))
-          } else if (implicitTrailing) {
-            price = parseInt(implicitTrailing[0]) / 100
-          }
+        // Extract the name: strip leading index, get text before first big number
+        let namePart = trimmedLine.replace(/^\d{1,2}[\.\)\s]+/, '')
+        const firstBigNum = namePart.match(/\d{3,}|\d+\.\d/)
+        if (firstBigNum && firstBigNum.index !== undefined) {
+          namePart = namePart.substring(0, firstBigNum.index)
+        }
+        namePart = namePart.replace(/[^a-zA-Z\s]/g, '').trim()
 
-          if (rawName.length >= 2 && price > 0) {
-            detectedItems.push({ name: rawName.toUpperCase(), price })
-            pendingName = ''
-          } else if (rawName.length >= 2) {
-            pendingName = rawName.toUpperCase()
-          } else if (price > 0 && pendingName) {
-            detectedItems.push({ name: pendingName, price })
-            pendingName = ''
-          }
+        if (namePart.length < 2) return
+
+        // Price: prefer explicit decimals, else use last number
+        const explicitDecimals = trimmedLine.match(/(\d[\d,]*\.\d{2})/g)
+        let price = 0
+        if (explicitDecimals) {
+          price = parseFloat(explicitDecimals[explicitDecimals.length - 1].replace(/,/g, ''))
+        } else {
+          price = parseFloat(nums[nums.length - 1].replace(/,/g, ''))
+        }
+
+        if (price > 0 && price < 10000000) {
+          detectedItems.push({ name: namePart.toUpperCase(), price })
         }
       })
 
